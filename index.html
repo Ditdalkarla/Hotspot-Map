@@ -1,38 +1,70 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Peta Hotspot - Satellite View (Gratis)</title>
+  <title>Peta Hotspot - Earth View</title>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
     html, body, #map {
       height: 100%;
       margin: 0;
       padding: 0;
     }
+
+    #overlay {
+      position: absolute;
+      top: 10px;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      z-index: 10;
+      color: white;
+      font-family: Arial, sans-serif;
+    }
+
+    .logo-left {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      height: 60px;
+    }
+
+    .logo-right {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      height: 60px;
+    }
+
+    .judul {
+      font-size: 18px;
+      font-weight: bold;
+      background-color: rgba(0, 0, 0, 0.5);
+      padding: 6px 12px;
+      border-radius: 6px;
+      display: inline-block;
+    }
   </style>
 </head>
 <body>
   <div id="map"></div>
 
-  <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <div id="overlay">
+    <img src="Logo Deputi Gakkum LH.jpeg" class="logo-left" />
+    <span class="judul">DEPUTI BIDANG PENEGAKAN HUKUM LINGKUNGAN HIDUP, DIREKTORAT PENGENDALIAN KEBAKARAN LAHAN</span>
+    <img src="KLH(BPLH) - LOGO-06.png" class="logo-right" />
+  </div>
 
   <script>
     const sheetDataUrl = "https://script.google.com/macros/s/AKfycbwM8rZO1cOlMe6ivAaTEDkFjY2xt3fR33fwfqbL0PbWCGfyG_Kpm-7Phfq34eob9NcZ/exec";
 
     const map = L.map('map').setView([-2.5, 117.5], 5);
 
-    // Gunakan tile satelit dari Esri (gratis dan legal)
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      attribution: 'Tiles © Esri | Source: Esri, Maxar, Earthstar Geographics',
-      maxZoom: 19
+    L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+      maxZoom: 20,
+      subdomains:['mt0','mt1','mt2','mt3'],
     }).addTo(map);
 
-    // Ambil dan tampilkan data hotspot
     fetch(sheetDataUrl)
       .then(res => res.json())
       .then(data => {
@@ -43,9 +75,8 @@
 
           if (!isNaN(lat) && !isNaN(lon)) {
             const iconColor = level === "high" ? "red" : "yellow";
-
             const circle = L.circleMarker([lat, lon], {
-              radius: 8,
+              radius: 6,
               fillColor: iconColor,
               color: iconColor,
               weight: 1,
@@ -66,11 +97,11 @@
             `);
           }
         });
-      })
-      .catch(err => {
-        console.error("Gagal mengambil data:", err);
-        alert("Gagal mengambil data dari Google Sheet.");
       });
   </script>
+
+  <!-- Leaflet CDN -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </body>
 </html>
