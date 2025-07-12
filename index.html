@@ -4,6 +4,7 @@
   <title>Peta Hotspot - Earth View</title>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <style>
     html, body, #map {
       height: 100%;
@@ -17,42 +18,47 @@
       left: 0;
       width: 100%;
       text-align: center;
-      z-index: 10;
-      color: white;
+      z-index: 1000;
       font-family: Arial, sans-serif;
     }
 
-    .logo-left {
+    .logo-left, .logo-right {
       position: absolute;
       top: 10px;
-      left: 10px;
       height: 60px;
+      z-index: 1001;
+    }
+
+    .logo-left {
+      left: 10px;
     }
 
     .logo-right {
-      position: absolute;
-      top: 10px;
       right: 10px;
-      height: 60px;
     }
 
     .judul {
-      font-size: 18px;
+      font-size: 16px;
       font-weight: bold;
-      background-color: rgba(0, 0, 0, 0.5);
+      background-color: rgba(0, 0, 0, 0.6);
+      color: white;
       padding: 6px 12px;
       border-radius: 6px;
       display: inline-block;
     }
   </style>
+
+  <!-- Leaflet CDN -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
   <div id="map"></div>
 
   <div id="overlay">
-    <img src="Logo Deputi Gakkum LH.jpeg" class="logo-left" />
-    <span class="judul">DEPUTI BIDANG PENEGAKAN HUKUM LINGKUNGAN HIDUP, DIREKTORAT PENGENDALIAN KEBAKARAN LAHAN</span>
-    <img src="KLH(BPLH) - LOGO-06.png" class="logo-right" />
+    <img src="Logo Deputi Gakkum LH.jpeg" class="logo-left" alt="Logo Gakkum" />
+    <span class="judul">Peta Hotspot Level Confidence Medium - High selama rentang 3 hari</span>
+    <img src="KLH(BPLH) - LOGO-06.png" class="logo-right" alt="Logo KLHK" />
   </div>
 
   <script>
@@ -62,7 +68,7 @@
 
     L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
       maxZoom: 20,
-      subdomains:['mt0','mt1','mt2','mt3'],
+      subdomains: ['mt0','mt1','mt2','mt3'],
     }).addTo(map);
 
     fetch(sheetDataUrl)
@@ -74,17 +80,18 @@
           const level = (row["Confidence_Level"] || "").toLowerCase();
 
           if (!isNaN(lat) && !isNaN(lon)) {
-            const iconColor = level === "high" ? "red" : "yellow";
-            const circle = L.circleMarker([lat, lon], {
+            const color = level === "high" ? "red" : "yellow";
+
+            const marker = L.circleMarker([lat, lon], {
               radius: 6,
-              fillColor: iconColor,
-              color: iconColor,
+              fillColor: color,
+              color: color,
               weight: 1,
               opacity: 1,
               fillOpacity: 0.5
             }).addTo(map);
 
-            circle.bindPopup(`
+            marker.bindPopup(`
               <b>${row["Tanggal & Jam"]}</b><br>
               Provinsi: ${row.Provinsi}<br>
               Kab/Kota: ${row["Kab/Kota"]}<br>
@@ -97,11 +104,11 @@
             `);
           }
         });
+      })
+      .catch(err => {
+        console.error("Gagal mengambil data:", err);
+        alert("Gagal mengambil data dari Spreadsheet.");
       });
   </script>
-
-  <!-- Leaflet CDN -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </body>
 </html>
