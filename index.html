@@ -1,162 +1,70 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>Peta Hotspot</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>
+  let map;
+  let hotspotLayer;
 
-  <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  function initMap() {
+    map = L.map('map').setView([-2.5, 117], 5);
 
-  <style>
-    body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
-    #map { width: 100%; height: calc(100vh - 100px); }
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles &copy; Esri — Source: Esri, Earthstar Geographics',
+      maxZoom: 18
+    }).addTo(map);
 
-    .header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: #666;
-      color: white;
-      padding: 10px 20px;
-    }
+    loadHotspotData();
+  }
 
-    .logo {
-      height: 50px;
-      object-fit: contain;
-    }
+  function loadHotspotData() {
+    const url = 'https://opensheet.elk.sh/1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI/Data Hotspot Nasional';
 
-    .title {
-      font-size: 18px;
-      font-weight: bold;
-      text-align: center;
-      flex-grow: 1;
-    }
+    fetch(url)
+      .then(response => response.json())
+      .then(data => {
+        console.log("Hotspot data:", data); // debug line
 
-    .subtitle {
-      text-align: center;
-      background: #444;
-      color: #fff;
-      padding: 6px 10px;
-      font-size: 14px;
-    }
+        if (hotspotLayer) {
+          map.removeLayer(hotspotLayer);
+        }
 
-    .legend {
-      position: absolute;
-      bottom: 70px;
-      left: 10px;
-      background: white;
-      padding: 8px 10px;
-      border-radius: 5px;
-      font-size: 12px;
-      box-shadow: 0 0 5px rgba(0,0,0,0.3);
-    }
+        const markers = [];
 
-    .legend div { margin-bottom: 4px; }
-    .dot {
-      height: 10px;
-      width: 10px;
-      border-radius: 50%;
-      display: inline-block;
-      margin-right: 6px;
-    }
-  </style>
-</head>
-<body>
+        data.forEach(row => {
+          const lat = parseFloat(row.Latitude);
+          const lon = parseFloat(row.Longitude);
+          const level = row.Confidence_Level?.toLowerCase() || '';
+          const sumber = row.Sumber || '';
+          const tanggal = row.Tanggal || '';
+          const jam = row.Jam || '';
 
-  <!-- Header -->
-  <div class="header">
-    <img src="logo-kiri.png" class="logo" alt="Logo Kiri">
-    <div class="title">DIREKTORAT PENGENDALIAN KEBAKARAN LAHAN</div>
-    <img src="logo-kanan.png" class="logo" alt="Logo Kanan">
-  </div>
-  <div class="subtitle">Peta Hotspot Level Confidence Medium - High selama rentang 3 hari</div>
+          if (!isNaN(lat) && !isNaN(lon)) {
+            const color = (level === 'high') ? 'red' :
+                          (level === 'medium') ? 'yellow' : 'gray';
 
-  <!-- Map -->
-  <div id="map"></div>
+            const marker = L.circleMarker([lat, lon], {
+              radius: 6,
+              fillColor: color,
+              color: '#000',
+              weight: 1,
+              opacity: 1,
+              fillOpacity: 0.5
+            }).bindPopup(`
+              <b>Tanggal:</b> ${tanggal}<br>
+              <b>Jam:</b> ${jam}<br>
+              <b>Confidence:</b> ${level}<br>
+              <b>Sumber:</b> ${sumber}
+            `);
 
-  <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-  <script>
-    let map;
-    let hotspotLayer;
-
-    function initMap() {
-      map = L.map('map').setView([-2.5, 117], 5);
-
-      // ESRI World Imagery layer
-      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'Tiles &copy; Esri — Source: Esri, Earthstar Geographics',
-        maxZoom: 18
-      }).addTo(map);
-
-      loadHotspotData();
-    }
-
-    function loadHotspotData() {
-      const url = 'https://opensheet.elk.sh/1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI/Data Hotspot Nasional';
-
-      fetch(url)
-        .then(response => response.json())
-        .then(data => {
-          if (hotspotLayer) {
-            map.removeLayer(hotspotLayer);
+            markers.push(marker);
           }
-
-          const markers = [];
-
-          data.forEach(row => {
-            const lat = parseFloat(row.Latitude);
-            const lon = parseFloat(row.Longitude);
-            const level = row.Confidence_Level?.toLowerCase() || '';
-            const sumber = row.Sumber || '';
-            const tanggal = row.Tanggal || '';
-            const jam = row.Jam || '';
-
-            if (!isNaN(lat) && !isNaN(lon)) {
-              const color = (level === 'high') ? 'red' :
-                            (level === 'medium') ? 'yellow' : 'gray';
-
-              const marker = L.circleMarker([lat, lon], {
-                radius: 6,
-                fillColor: color,
-                color: '#000',
-                weight: 1,
-                opacity: 1,
-                fillOpacity: 0.5
-              }).bindPopup(`
-                <b>Tanggal:</b> ${tanggal}<br>
-                <b>Jam:</b> ${jam}<br>
-                <b>Confidence:</b> ${level}<br>
-                <b>Sumber:</b> ${sumber}
-              `);
-
-              markers.push(marker);
-            }
-          });
-
-          hotspotLayer = L.layerGroup(markers).addTo(map);
         });
-    }
 
-    // Legend
-    const legend = L.control({ position: 'bottomleft' });
-    legend.onAdd = function () {
-      const div = L.DomUtil.create('div', 'legend');
-      div.innerHTML = `
-        <div><span class="dot" style="background:red"></span> High Confidence</div>
-        <div><span class="dot" style="background:yellow"></span> Medium Confidence</div>
-      `;
-      return div;
-    };
-    legend.addTo(map);
+        hotspotLayer = L.layerGroup(markers).addTo(map);
+        map.invalidateSize(); // optional
+      });
+  }
 
-    // Initialize map and auto-refresh
-    window.onload = () => {
-      initMap();
-      setInterval(loadHotspotData, 15 * 60 * 1000); // Refresh every 15 minutes
-    };
-  </script>
-</body>
-</html>
+  // Init
+  window.addEventListener('load', () => {
+    initMap();
+    setInterval(loadHotspotData, 15 * 60 * 1000);
+  });
+</script>
