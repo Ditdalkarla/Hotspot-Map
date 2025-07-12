@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Hotspot Map</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    #map { height: 100vh; width: 100vw; }
+  </style>
+  <!-- Gunakan LeafletJS agar bebas dari API Google -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+  <div id="map"></div>
+
+  <script>
+    const MAP_URL = 'https://script.google.com/macros/s/AKfycbwM8rZO1cOlMe6ivAaTEDkFjY2xt3fR33fwfqbL0PbWCGfyG_Kpm-7Phfq34eob9NcZ/exec'; // ← Ganti dengan Web App URL kamu
+
+    // Inisialisasi peta
+    const map = L.map('map').setView([-2.5, 117.5], 5); // Indonesia center
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap',
+    }).addTo(map);
+
+    fetch(MAP_URL)
+      .then(response => response.json())
+      .then(data => {
+        data.forEach(item => {
+          const lat = parseFloat(item['Latitude']);
+          const lng = parseFloat(item['Longitude']);
+          const confidence = (item['Confidence_Level'] || '').toLowerCase();
+
+          // Validasi koordinat
+          if (!isNaN(lat) && !isNaN(lng)) {
+            const color = confidence === 'high' ? 'red' : 'yellow';
+
+            const circle = L.circleMarker([lat, lng], {
+              color: color,
+              fillColor: color,
+              fillOpacity: 0.5,
+              radius: 6,
+            }).addTo(map);
+
+            circle.bindPopup(`
+              <b>${item['Tanggal & Jam']}</b><br>
+              ${item['Desa']}, ${item['Kecamatan']}<br>
+              ${item['Kab/Kota']}, ${item['Provinsi']}<br>
+              Confidence: ${confidence}
+            `);
+          }
+        });
+      })
+      .catch(error => console.error('Gagal memuat data:', error));
+  </script>
+</body>
+</html>
