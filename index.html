@@ -207,6 +207,12 @@
     }
 
     init();
+
+    // Refresh data setiap 15 menit (900.000 ms)
+    setInterval(() => {
+      console.log("⏳ Refreshing data dari spreadsheet...");
+      init();
+    }, 900000);
   </script>
 </body>
 </html>
