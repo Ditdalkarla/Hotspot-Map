@@ -1,114 +1,158 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Peta Hotspot - Earth View</title>
   <meta charset="utf-8" />
+  <title>Peta Hotspot</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
   <style>
-    html, body, #map {
-      height: 100%;
-      margin: 0;
-      padding: 0;
-    }
+    body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
+    #map { width: 100%; height: 100vh; }
 
-    #overlay {
-      position: absolute;
-      top: 10px;
-      left: 0;
-      width: 100%;
-      text-align: center;
-      z-index: 1000;
-      font-family: Arial, sans-serif;
-    }
-
-    .logo-left, .logo-right {
-      position: absolute;
-      top: 10px;
-      height: 60px;
-      z-index: 1001;
-    }
-
-    .logo-left {
-      left: 10px;
-    }
-
-    .logo-right {
-      right: 10px;
-    }
-
-    .judul {
-      font-size: 16px;
-      font-weight: bold;
-      background-color: rgba(0, 0, 0, 0.6);
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #666;
       color: white;
-      padding: 6px 12px;
-      border-radius: 6px;
+      padding: 10px;
+    }
+
+    .logo {
+      height: 50px;
+    }
+
+    .title {
+      font-size: 18px;
+      font-weight: bold;
+      text-align: center;
+      flex: 1;
+    }
+
+    .subtitle {
+      text-align: center;
+      background: #444;
+      color: #fff;
+      padding: 5px;
+      font-size: 14px;
+    }
+
+    .legend {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background: white;
+      padding: 8px;
+      border-radius: 5px;
+      font-size: 12px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.3);
+    }
+
+    .legend div { margin-bottom: 4px; }
+    .dot {
+      height: 10px;
+      width: 10px;
+      border-radius: 50%;
       display: inline-block;
+      margin-right: 6px;
     }
   </style>
-
-  <!-- Leaflet CDN -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
+
+  <!-- Header -->
+  <div class="header">
+    <img src="logo-gakkum.png" class="logo" alt="Logo Kiri">
+    <div class="title">DIREKTORAT PENGENDALIAN KEBAKARAN LAHAN</div>
+    <img src="logo-klhk.png" class="logo" alt="Logo Kanan">
+  </div>
+  <div class="subtitle">Peta Hotspot Level Confidence Medium - High selama rentang 3 hari</div>
+
+  <!-- Map -->
   <div id="map"></div>
 
-  <div id="overlay">
-    <img src="Logo Deputi Gakkum LH.jpeg" class="logo-left" alt="Logo Gakkum" />
-    <span class="judul">Peta Hotspot Level Confidence Medium - High selama rentang 3 hari</span>
-    <img src="KLH(BPLH) - LOGO-06.png" class="logo-right" alt="Logo KLHK" />
-  </div>
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+  <!-- Map Initialization -->
   <script>
-    const sheetDataUrl = "https://script.google.com/macros/s/AKfycbwM8rZO1cOlMe6ivAaTEDkFjY2xt3fR33fwfqbL0PbWCGfyG_Kpm-7Phfq34eob9NcZ/exec";
+    const map = L.map('map').setView([-2.5, 117], 5); // Center Indonesia
 
-    const map = L.map('map').setView([-2.5, 117.5], 5);
-
-    L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
-      maxZoom: 20,
-      subdomains: ['mt0','mt1','mt2','mt3'],
+    // ESRI Imagery Tile Layer
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: '&copy; Esri',
+      maxZoom: 18
     }).addTo(map);
 
-    fetch(sheetDataUrl)
+    // Load GeoJSON Wilayah Administrasi
+    fetch('wilayah_administrasi.json')
       .then(res => res.json())
+      .then(geojson => {
+        L.geoJSON(geojson, {
+          style: {
+            color: "#3388ff",
+            weight: 2,
+            opacity: 0.7,
+            fillOpacity: 0.05
+          },
+          onEachFeature: function (feature, layer) {
+            if (feature.properties && feature.properties.nama) {
+              layer.bindPopup("Wilayah: " + feature.properties.nama);
+            }
+          }
+        }).addTo(map);
+      });
+
+    // Ambil data dari Google Sheets (convert ke JSON)
+    const sheetURL = 'https://opensheet.elk.sh/1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI/Data Hotspot Nasional';
+
+    fetch(sheetURL)
+      .then(response => response.json())
       .then(data => {
         data.forEach(row => {
           const lat = parseFloat(row.Latitude);
           const lon = parseFloat(row.Longitude);
-          const level = (row["Confidence_Level"] || "").toLowerCase();
+          const level = row.Confidence_Level.toLowerCase();
+          const sumber = row.Sumber || '';
+          const tanggal = row.Tanggal || '';
+          const jam = row.Jam || '';
 
           if (!isNaN(lat) && !isNaN(lon)) {
-            const color = level === "high" ? "red" : "yellow";
+            const color = (level === 'high') ? 'red' : (level === 'medium') ? 'yellow' : 'gray';
 
-            const marker = L.circleMarker([lat, lon], {
+            const circle = L.circleMarker([lat, lon], {
               radius: 6,
               fillColor: color,
-              color: color,
+              color: '#000',
               weight: 1,
               opacity: 1,
               fillOpacity: 0.5
             }).addTo(map);
 
-            marker.bindPopup(`
-              <b>${row["Tanggal & Jam"]}</b><br>
-              Provinsi: ${row.Provinsi}<br>
-              Kab/Kota: ${row["Kab/Kota"]}<br>
-              Kec: ${row.Kecamatan}<br>
-              Desa: ${row.Desa}<br>
-              Sumber: ${row.Sumber}<br>
-              Level: ${row.Confidence_Level}<br>
-              <b>Latitude:</b> ${lat}<br>
-              <b>Longitude:</b> ${lon}
+            circle.bindPopup(`
+              <b>Tanggal:</b> ${tanggal}<br>
+              <b>Jam:</b> ${jam}<br>
+              <b>Confidence:</b> ${level}<br>
+              <b>Sumber:</b> ${sumber}
             `);
           }
         });
-      })
-      .catch(err => {
-        console.error("Gagal mengambil data:", err);
-        alert("Gagal mengambil data dari Spreadsheet.");
       });
+
+    // Legend
+    const legend = L.control({ position: 'bottomleft' });
+    legend.onAdd = function () {
+      const div = L.DomUtil.create('div', 'legend');
+      div.innerHTML = `
+        <div><span class="dot" style="background:red"></span> High Confidence</div>
+        <div><span class="dot" style="background:yellow"></span> Medium Confidence</div>
+      `;
+      return div;
+    };
+    legend.addTo(map);
   </script>
 </body>
 </html>
