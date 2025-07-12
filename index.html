@@ -1,167 +1,188 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="UTF-8">
   <title>Peta Hotspot</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
-    html, body { height: 100%; margin: 0; padding: 0; }
-    #map { height: 100vh; }
+    body { margin: 0; padding: 0; font-family: sans-serif; }
+    #map { height: 100vh; width: 100%; }
 
-    header {
-      background-color: #444;
-      color: white;
-      padding: 10px;
-      text-align: center;
-      font-weight: bold;
-      font-size: 16px;
-    }
-
-    #filter-container {
+    .header {
       position: absolute;
-      top: 70px;
-      left: 10px;
-      background: white;
-      padding: 10px;
-      z-index: 1000;
-      border-radius: 8px;
-      box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
-      font-family: sans-serif;
-      font-size: 14px;
-    }
-
-    #filter-container label {
+      top: 0; left: 0; width: 100%;
       display: flex;
+      justify-content: space-between;
       align-items: center;
-      gap: 6px;
-      margin-bottom: 6px;
+      background: #444;
+      color: white;
+      padding: 10px 20px;
+      z-index: 1000;
     }
 
-    .color-dot {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      display: inline-block;
+    .title {
+      text-align: center;
+      flex-grow: 1;
+      font-size: 16px;
+      font-weight: bold;
     }
 
-    .dot-yellow { background: yellow; border: 1px solid #aaa; }
-    .dot-red { background: red; }
+    .logo {
+      height: 40px;
+    }
 
-    /* Logo kiri atas */
-    #logo-kiri {
+    .filters {
       position: absolute;
-      top: 10px;
+      top: 100px;
       left: 10px;
-      z-index: 1001;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 14px;
+      z-index: 999;
+      max-width: 200px;
     }
 
-    #logo-kiri img {
-      height: 50px;
+    .filters h4 {
+      margin-top: 0;
     }
 
-    /* Logo kanan atas */
-    #logo-kanan {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      z-index: 1001;
-    }
-
-    #logo-kanan img {
-      height: 50px;
+    .checkbox-group {
+      margin-bottom: 10px;
     }
   </style>
 </head>
 <body>
-  <header>
-    DIREKTORAT PENGENDALIAN KEBAKARAN LAHAN<br>
-    <small>Peta Hotspot Confidence Level Medium - High (3 Hari Terakhir)</small>
-  </header>
-
-  <!-- Logo kiri atas -->
-  <div id="logo-kiri">
-    <img src="logo-kiri.png" alt="Logo Kiri">
+  <!-- Header -->
+  <div class="header">
+    <img src="logo-kiri.png" class="logo" alt="Logo Kiri">
+    <div class="title">
+      DIREKTORAT PENGENDALIAN KEBAKARAN LAHAN<br>
+      <small>Peta Hotspot Level Confidence Medium - High selama rentang 3 hari</small>
+    </div>
+    <img src="logo-kanan.png" class="logo" alt="Logo Kanan">
   </div>
 
-  <!-- Logo kanan atas -->
-  <div id="logo-kanan">
-    <img src="logo-kanan.png" alt="Logo Kanan">
+  <!-- Filter -->
+  <div class="filters">
+    <div class="checkbox-group">
+      <h4>Confidence Level</h4>
+      <label><input type="checkbox" value="medium" checked> 🟡 Medium</label><br>
+      <label><input type="checkbox" value="high" checked> 🔴 High</label>
+    </div>
+    <div class="checkbox-group">
+      <h4>Tanggal</h4>
+      <div id="tanggal-filter">Memuat tanggal...</div>
+    </div>
   </div>
 
-  <!-- Filter checklist -->
-  <div id="filter-container">
-    <strong>Confidence Level</strong>
-    <label><span class="color-dot dot-yellow"></span><input type="checkbox" class="confidence-check" value="medium" checked> Medium</label>
-    <label><span class="color-dot dot-red"></span><input type="checkbox" class="confidence-check" value="high" checked> High</label>
-  </div>
-
+  <!-- Map -->
   <div id="map"></div>
 
-  <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+  <!-- Script -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    const map = L.map('map').setView([-2.5, 117], 5);
+    const map = L.map('map', { attributionControl: false }).setView([-2.5, 117], 5);
 
-    // ESRI tile layer
-    L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      attribution: 'Tiles © Esri'
+    // ESRI tile
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 18
     }).addTo(map);
 
+    let hotspotLayer = L.layerGroup().addTo(map);
     const url = "https://opensheet.elk.sh/1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI/Data%20Hotspot%20Nasional";
-    let allMarkers = [];
+    let rawData = [];
 
-    function updateMap() {
-      allMarkers.forEach(m => map.removeLayer(m));
-      allMarkers = [];
-
-      const selectedConfidences = Array.from(document.querySelectorAll('.confidence-check:checked')).map(cb => cb.value);
-
-      fetch(url)
-        .then(response => response.json())
-        .then(data => {
-          data.forEach(row => {
-            const lat = parseFloat(row.Latitude);
-            const lon = parseFloat(row.Longitude);
-            const confidence = row.Confidence_Level?.toLowerCase();
-
-            if (!isNaN(lat) && !isNaN(lon) && selectedConfidences.includes(confidence)) {
-              const color = confidence === 'high' ? 'red' : 'yellow';
-
-              const marker = L.circleMarker([lat, lon], {
-                radius: 6,
-                fillColor: color,
-                color: "#000",
-                weight: 1,
-                opacity: 0.5,
-                fillOpacity: 0.5
-              }).addTo(map);
-
-              marker.bindPopup(`
-                <strong>${row["Tanggal & Jam"]}</strong><br>
-                ${row.Provinsi} - ${row["Kab/Kota"]}, ${row.Kecamatan}<br>
-                Desa: ${row.Desa}<br>
-                Confidence: ${row.Confidence_Level}<br>
-                Sumber: ${row.Sumber}<br>
-                Latitude: ${lat.toFixed(5)}<br>
-                Longitude: ${lon.toFixed(5)}
-              `);
-
-              allMarkers.push(marker);
-            }
-          });
-        })
-        .catch(err => {
-          console.error("Gagal ambil data:", err);
-          alert("Gagal memuat data hotspot");
-        });
+    function extractTanggal(tanggalJam) {
+      // Ambil hanya bagian tanggal dari "Sabtu, 12 Juli 2025 11:36:00"
+      return tanggalJam.split(' ')[1] + ' ' + tanggalJam.split(' ')[2] + ' ' + tanggalJam.split(' ')[3];
     }
 
-    updateMap();
+    function renderFilterTanggal(data) {
+      const tanggalSet = new Set();
+      data.forEach(row => {
+        if (row["Tanggal & Jam"]) {
+          tanggalSet.add(extractTanggal(row["Tanggal & Jam"]));
+        }
+      });
 
-    document.querySelectorAll('.confidence-check').forEach(cb => {
-      cb.addEventListener('change', updateMap);
-    });
+      const tanggalFilterDiv = document.getElementById("tanggal-filter");
+      tanggalFilterDiv.innerHTML = "";
+
+      [...tanggalSet].sort().forEach(tanggal => {
+        const id = `tgl-${tanggal.replace(/\s+/g, '-')}`;
+        tanggalFilterDiv.innerHTML += `
+          <label><input type="checkbox" value="${tanggal}" checked> ${tanggal}</label><br>
+        `;
+      });
+    }
+
+    function getSelectedFilters() {
+      const levels = Array.from(document.querySelectorAll('.filters input[type=checkbox][value="medium"], .filters input[type=checkbox][value="high"]'))
+        .filter(cb => cb.checked)
+        .map(cb => cb.value);
+
+      const tanggal = Array.from(document.querySelectorAll('#tanggal-filter input[type=checkbox]'))
+        .filter(cb => cb.checked)
+        .map(cb => cb.value);
+
+      return { levels, tanggal };
+    }
+
+    function applyFilters() {
+      const { levels, tanggal } = getSelectedFilters();
+      hotspotLayer.clearLayers();
+
+      rawData.forEach(row => {
+        const lat = parseFloat(row.Latitude);
+        const lon = parseFloat(row.Longitude);
+        const conf = row.Confidence_Level?.toLowerCase();
+        const sumber = row.Sumber || "";
+        const lokasi = `${row.Provinsi} - ${row["Kab/Kota"]}`;
+        const waktu = row["Tanggal & Jam"] || "";
+        const desa = row.Desa || "";
+
+        const tanggalOnly = extractTanggal(waktu);
+
+        if (!isNaN(lat) && !isNaN(lon) && levels.includes(conf) && tanggal.includes(tanggalOnly)) {
+          const color = conf === 'high' ? 'red' : 'yellow';
+
+          L.circleMarker([lat, lon], {
+            radius: 6,
+            fillColor: color,
+            color: '#000',
+            weight: 1,
+            opacity: 0.5,
+            fillOpacity: 0.5
+          }).addTo(hotspotLayer)
+          .bindPopup(`
+            <b>${waktu}</b><br>
+            ${lokasi}<br>
+            Desa: ${desa}<br>
+            Confidence: ${conf}<br>
+            Sumber: ${sumber}<br>
+            Koordinat: ${lat.toFixed(4)}, ${lon.toFixed(4)}
+          `);
+        }
+      });
+    }
+
+    function init() {
+      fetch(url)
+        .then(res => res.json())
+        .then(data => {
+          rawData = data;
+          renderFilterTanggal(data);
+          applyFilters();
+        });
+
+      document.querySelectorAll('.filters input[type=checkbox]').forEach(cb => {
+        cb.addEventListener('change', applyFilters);
+      });
+    }
+
+    init();
   </script>
 </body>
 </html>
