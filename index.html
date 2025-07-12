@@ -15,10 +15,11 @@
     .header {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: center;
       background: #666;
       color: white;
       padding: 10px;
+      gap: 20px;
     }
 
     .logo {
@@ -29,7 +30,7 @@
       font-size: 18px;
       font-weight: bold;
       text-align: center;
-      flex: 1;
+      max-width: 70%;
     }
 
     .subtitle {
@@ -65,9 +66,9 @@
 
   <!-- Header -->
   <div class="header">
-    <img src="logo-gakkum.png" class="logo" alt="Logo Kiri">
+    <img src="logo-gakkum.png" class="logo" alt="Logo Gakkum">
     <div class="title">DIREKTORAT PENGENDALIAN KEBAKARAN LAHAN</div>
-    <img src="logo-klhk.png" class="logo" alt="Logo Kanan">
+    <img src="logo-klhk.png" class="logo" alt="Logo KLHK">
   </div>
   <div class="subtitle">Peta Hotspot Level Confidence Medium - High selama rentang 3 hari</div>
 
@@ -77,17 +78,16 @@
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- Map Initialization -->
   <script>
     const map = L.map('map').setView([-2.5, 117], 5); // Center Indonesia
 
-    // ESRI Imagery Tile Layer
+    // ESRI World Imagery
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       attribution: '&copy; Esri',
       maxZoom: 18
     }).addTo(map);
 
-    // Load GeoJSON Wilayah Administrasi
+    // Tambahkan layer GeoJSON wilayah administrasi
     fetch('wilayah_administrasi.json')
       .then(res => res.json())
       .then(geojson => {
@@ -106,8 +106,8 @@
         }).addTo(map);
       });
 
-    // Ambil data dari Google Sheets (convert ke JSON)
-    const sheetURL = 'https://opensheet.elk.sh/1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI/Data Hotspot Nasional';
+    // Ambil data dari Google Sheets (via opensheet)
+    const sheetURL = 'https://opensheet.elk.sh/1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI/Data%20Hotspot%20Nasional';
 
     fetch(sheetURL)
       .then(response => response.json())
@@ -115,13 +115,14 @@
         data.forEach(row => {
           const lat = parseFloat(row.Latitude);
           const lon = parseFloat(row.Longitude);
-          const level = row.Confidence_Level.toLowerCase();
+          const level = row.Confidence_Level?.toLowerCase();
           const sumber = row.Sumber || '';
           const tanggal = row.Tanggal || '';
           const jam = row.Jam || '';
+          const lokasi = `${row.Provinsi || ''}, ${row['Kab/Kota'] || ''}`;
 
-          if (!isNaN(lat) && !isNaN(lon)) {
-            const color = (level === 'high') ? 'red' : (level === 'medium') ? 'yellow' : 'gray';
+          if (!isNaN(lat) && !isNaN(lon) && (level === 'high' || level === 'medium')) {
+            const color = level === 'high' ? 'red' : 'yellow';
 
             const circle = L.circleMarker([lat, lon], {
               radius: 6,
@@ -133,6 +134,8 @@
             }).addTo(map);
 
             circle.bindPopup(`
+              <b>Provinsi:</b> ${row.Provinsi}<br>
+              <b>Kab/Kota:</b> ${row['Kab/Kota']}<br>
               <b>Tanggal:</b> ${tanggal}<br>
               <b>Jam:</b> ${jam}<br>
               <b>Confidence:</b> ${level}<br>
@@ -153,6 +156,11 @@
       return div;
     };
     legend.addTo(map);
+
+    // Auto refresh setiap 15 menit
+    setTimeout(() => {
+      location.reload();
+    }, 900000);
   </script>
 </body>
 </html>
