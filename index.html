@@ -15,6 +15,23 @@
       text-align: center;
       font-weight: bold;
     }
+    #logo-kiri {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background: white;
+      padding: 5px;
+      border-radius: 5px;
+    }
+    #label-kanan {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(255,255,255,0.8);
+      padding: 5px 10px;
+      border-radius: 5px;
+      font-size: 12px;
+    }
   </style>
 </head>
 <body>
@@ -23,11 +40,18 @@
     <small>Peta Hotspot Level Confidence Medium - High selama rentang 3 hari</small>
   </header>
   <div id="map"></div>
+  <div id="logo-kiri">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Logo_KLHK.svg/120px-Logo_KLHK.svg.png" height="50">
+  </div>
+  <div id="label-kanan">
+    &copy; KLHK 2025
+  </div>
+
   <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
   <script>
     const map = L.map('map').setView([-2.5, 117], 5);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors'
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles © Esri'
     }).addTo(map);
 
     const url = "https://opensheet.elk.sh/1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI/Data%20Hotspot%20Nasional";
