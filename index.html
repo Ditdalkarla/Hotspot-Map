@@ -7,30 +7,41 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
   <style>
     html, body { height: 100%; margin: 0; padding: 0; }
-    #map { height: 85vh; }
+    #map { height: 100vh; }
     header {
       background-color: #444;
       color: white;
       padding: 10px;
       text-align: center;
+      font-weight: bold;
+      font-size: 16px;
+      z-index: 1000;
     }
     #filter-container {
-      text-align: center;
-      margin: 10px;
+      position: absolute;
+      top: 70px;
+      left: 10px;
+      background: white;
+      padding: 8px;
+      z-index: 1000;
+      border-radius: 5px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.3);
     }
     #logo-kiri {
       position: absolute;
       bottom: 10px;
       left: 10px;
+      z-index: 1000;
       background: white;
       padding: 5px;
       border-radius: 5px;
     }
-    #label-kanan {
+    #logo-kanan {
       position: absolute;
       bottom: 10px;
       right: 10px;
-      background: rgba(255,255,255,0.8);
+      z-index: 1000;
+      background: rgba(255, 255, 255, 0.8);
       padding: 5px 10px;
       border-radius: 5px;
       font-size: 12px;
@@ -40,11 +51,11 @@
 <body>
   <header>
     DIREKTORAT PENGENDALIAN KEBAKARAN LAHAN<br>
-    <small>Peta Hotspot Level Confidence Medium - High selama rentang 3 hari</small>
+    <small>Peta Hotspot Confidence Level Medium - High (3 Hari Terakhir)</small>
   </header>
 
   <div id="filter-container">
-    <label for="confidenceFilter">Filter Confidence Level:</label>
+    <label for="confidenceFilter">Confidence:</label>
     <select id="confidenceFilter">
       <option value="all">Semua</option>
       <option value="medium">Medium</option>
@@ -54,10 +65,13 @@
 
   <div id="map"></div>
 
+  <!-- Logo Kiri -->
   <div id="logo-kiri">
-    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Logo_KLHK.svg/120px-Logo_KLHK.svg.png" height="50">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Logo_KLHK.svg/100px-Logo_KLHK.svg.png" height="50">
   </div>
-  <div id="label-kanan">
+
+  <!-- Label Kanan -->
+  <div id="logo-kanan">
     &copy; KLHK 2025
   </div>
 
@@ -65,7 +79,7 @@
   <script>
     const map = L.map('map').setView([-2.5, 117], 5);
 
-    // Tile layer ESRI
+    // Gunakan ESRI tile map
     L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       attribution: 'Tiles © Esri — Source: Esri, Earthstar Geographics'
     }).addTo(map);
@@ -73,7 +87,7 @@
     const url = "https://opensheet.elk.sh/1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI/Data%20Hotspot%20Nasional";
     let allMarkers = [];
 
-    function updateMap(filteredLevel) {
+    function updateMap(confidenceLevel) {
       allMarkers.forEach(marker => map.removeLayer(marker));
       allMarkers = [];
 
@@ -86,9 +100,8 @@
             const confidence = row.Confidence_Level?.toLowerCase();
 
             if (!isNaN(lat) && !isNaN(lon)) {
-              if (filteredLevel === 'all' || confidence === filteredLevel) {
+              if (confidenceLevel === 'all' || confidence === confidenceLevel) {
                 const color = confidence === 'high' ? 'red' : 'yellow';
-
                 const marker = L.circleMarker([lat, lon], {
                   radius: 6,
                   fillColor: color,
@@ -96,14 +109,17 @@
                   weight: 1,
                   opacity: 0.5,
                   fillOpacity: 0.5
-                }).addTo(map)
-                  .bindPopup(`
-                    <strong>${row["Tanggal & Jam"]}</strong><br>
-                    ${row.Provinsi} - ${row["Kab/Kota"]}<br>
-                    Desa: ${row.Desa}<br>
-                    Confidence: ${row.Confidence_Level}<br>
-                    Sumber: ${row.Sumber}
-                  `);
+                }).addTo(map);
+
+                marker.bindPopup(`
+                  <strong>${row["Tanggal & Jam"]}</strong><br>
+                  ${row.Provinsi} - ${row["Kab/Kota"]}, ${row.Kecamatan}<br>
+                  Desa: ${row.Desa}<br>
+                  Confidence: ${row.Confidence_Level}<br>
+                  Sumber: ${row.Sumber}<br>
+                  Lat: ${lat.toFixed(5)}<br>
+                  Long: ${lon.toFixed(5)}
+                `);
 
                 allMarkers.push(marker);
               }
@@ -119,10 +135,9 @@
     // Inisialisasi pertama
     updateMap('all');
 
-    // Event listener dropdown
+    // Dropdown filter listener
     document.getElementById('confidenceFilter').addEventListener('change', function () {
-      const selected = this.value;
-      updateMap(selected);
+      updateMap(this.value);
     });
   </script>
 </body>
