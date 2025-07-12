@@ -1,222 +1,88 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-  <meta charset="UTF-8">
-  <title>Peta Hotspot</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: sans-serif;
+  }
 
-    body {
-      font-family: sans-serif;
-    }
+  * {
+    box-sizing: border-box;
+  }
 
-    .header {
-      display: grid;
-      grid-template-columns: auto 1fr auto;
-      align-items: center;
-      padding: 6px 10px;
-      background-color: #444;
-      color: white;
-      width: 100%;
-      position: fixed;
-      top: 0;
-      left: 0;
-      z-index: 999;
-      height: auto;
-    }
+  .header {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    padding: 6px 10px;
+    background-color: #444;
+    color: white;
+    width: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 999;
+    height: 60px;
+  }
 
+  .logo {
+    height: 36px;
+    width: auto;
+  }
+
+  .title {
+    text-align: center;
+    font-size: 13px;
+    font-weight: bold;
+    line-height: 1.3;
+    padding: 0 8px;
+  }
+
+  #map {
+    position: absolute;
+    top: 60px; /* Sesuai tinggi header */
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1;
+  }
+
+  .filters {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    z-index: 999;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.2);
+  }
+
+  .filters h4 {
+    margin: 0 0 6px 0;
+    font-size: 14px;
+  }
+
+  .filters label {
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  @media (max-width: 600px) {
     .logo {
-      height: 36px;
-      width: auto;
+      height: 28px;
     }
-
     .title {
-      text-align: center;
-      font-size: 13px;
-      font-weight: bold;
-      line-height: 1.3;
-      padding: 0 8px;
+      font-size: 11px;
+      padding: 0 4px;
     }
-
+    .header {
+      height: auto;
+      flex-direction: column;
+    }
     #map {
-      position: absolute;
-      top: 60px;
-      bottom: 0;
-      left: 0;
-      right: 0;
+      top: 80px; /* Naikkan map jika header lebih tinggi */
     }
-
-    .filters {
-      position: absolute;
-      bottom: 10px;
-      left: 10px;
-      background: rgba(255, 255, 255, 0.95);
-      padding: 10px;
-      border-radius: 6px;
-      font-size: 13px;
-      z-index: 999;
-      box-shadow: 0 1px 6px rgba(0,0,0,0.2);
-    }
-
-    .filters h4 {
-      margin: 0 0 6px 0;
-      font-size: 14px;
-    }
-
-    .filters label {
-      display: block;
-      margin-bottom: 4px;
-    }
-
-    @media (max-width: 600px) {
-      .logo {
-        height: 28px;
-      }
-      .title {
-        font-size: 11px;
-        padding: 0 4px;
-      }
-    }
-  </style>
-</head>
-<body>
-
-  <!-- Header -->
-  <div class="header">
-    <img src="logo-kiri.png" class="logo" alt="Logo Kiri">
-    <div class="title">
-      DIREKTORAT PENGENDALIAN KEBAKARAN LAHAN<br>
-      <small>Peta Hotspot Level Confidence Medium - High selama rentang 3 hari</small>
-    </div>
-    <img src="logo-kanan.png" class="logo" alt="Logo Kanan">
-  </div>
-
-  <!-- Filter -->
-  <div class="filters">
-    <h4>Confidence Level</h4>
-    <label><input type="checkbox" class="confidence-filter" value="medium" checked> 🟡 Medium</label>
-    <label><input type="checkbox" class="confidence-filter" value="high" checked> 🔴 High</label>
-    <h4>Tanggal</h4>
-    <div id="tanggal-filter">Memuat tanggal...</div>
-  </div>
-
-  <!-- Peta -->
-  <div id="map"></div>
-
-  <!-- Script Leaflet -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>
-    const map = L.map('map', { attributionControl: false }).setView([-2.5, 117], 5);
-
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 18
-    }).addTo(map);
-
-    let hotspotLayer = L.layerGroup().addTo(map);
-    const url = "https://opensheet.elk.sh/1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI/Data%20Hotspot%20Nasional";
-    let rawData = [];
-
-    function getLastThreeDates() {
-      const options = { day: '2-digit', month: 'long', year: 'numeric' };
-      const result = [];
-      for (let i = 0; i < 3; i++) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        result.push(date.toLocaleDateString('id-ID', options));
-      }
-      return result;
-    }
-
-    function extractTanggal(tanggalJam) {
-      const parts = tanggalJam.split(',')[1]?.trim().split(' ') || [];
-      return parts.slice(0, 3).join(' ');
-    }
-
-    function renderFilterTanggal() {
-      const tanggalFilterDiv = document.getElementById("tanggal-filter");
-      const tanggalList = getLastThreeDates();
-
-      tanggalFilterDiv.innerHTML = "";
-      tanggalList.forEach(tgl => {
-        tanggalFilterDiv.innerHTML += `
-          <label><input type="checkbox" class="tanggal-filter" value="${tgl}" checked> ${tgl}</label>`;
-      });
-    }
-
-    function getSelectedFilters() {
-      const levels = Array.from(document.querySelectorAll('.confidence-filter'))
-        .filter(cb => cb.checked)
-        .map(cb => cb.value);
-
-      const tanggal = Array.from(document.querySelectorAll('.tanggal-filter'))
-        .filter(cb => cb.checked)
-        .map(cb => cb.value);
-
-      return { levels, tanggal };
-    }
-
-    function applyFilters() {
-      const { levels, tanggal } = getSelectedFilters();
-      hotspotLayer.clearLayers();
-
-      rawData.forEach(row => {
-        const lat = parseFloat(row.Latitude);
-        const lon = parseFloat(row.Longitude);
-        const conf = row.Confidence_Level?.toLowerCase();
-        const waktu = row["Tanggal & Jam"] || "";
-        const tanggalOnly = extractTanggal(waktu);
-        const lokasi = `${row.Provinsi} - ${row["Kab/Kota"]}`;
-        const desa = row.Desa || "";
-        const sumber = row.Sumber || "";
-
-        if (!isNaN(lat) && !isNaN(lon) && levels.includes(conf) && tanggal.includes(tanggalOnly)) {
-          const color = conf === 'high' ? 'red' : 'yellow';
-
-          L.circleMarker([lat, lon], {
-            radius: 6,
-            fillColor: color,
-            color: '#000',
-            weight: 1,
-            opacity: 0.5,
-            fillOpacity: 0.5
-          }).addTo(hotspotLayer)
-          .bindPopup(`
-            <b>${waktu}</b><br>
-            ${lokasi}<br>
-            Desa: ${desa}<br>
-            Confidence: ${conf}<br>
-            Sumber: ${sumber}<br>
-            Koordinat: ${lat.toFixed(4)}, ${lon.toFixed(4)}
-          `);
-        }
-      });
-    }
-
-    function fetchAndRenderData() {
-      fetch(url)
-        .then(res => res.json())
-        .then(data => {
-          rawData = data;
-          renderFilterTanggal();
-          applyFilters();
-          document.querySelectorAll('.filters input[type=checkbox]').forEach(cb => {
-            cb.addEventListener('change', applyFilters);
-          });
-        });
-    }
-
-    function init() {
-      fetchAndRenderData();
-      setInterval(fetchAndRenderData, 15 * 60 * 1000); // Refresh 15 menit
-    }
-
-    init();
-  </script>
-</body>
-</html>
+  }
+</style>
