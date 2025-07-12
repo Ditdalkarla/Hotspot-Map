@@ -7,13 +7,16 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
   <style>
     html, body { height: 100%; margin: 0; padding: 0; }
-    #map { height: 90vh; }
+    #map { height: 85vh; }
     header {
       background-color: #444;
       color: white;
-      padding: 15px;
+      padding: 10px;
       text-align: center;
-      font-weight: bold;
+    }
+    #filter-container {
+      text-align: center;
+      margin: 10px;
     }
     #logo-kiri {
       position: absolute;
@@ -39,7 +42,18 @@
     DIREKTORAT PENGENDALIAN KEBAKARAN LAHAN<br>
     <small>Peta Hotspot Level Confidence Medium - High selama rentang 3 hari</small>
   </header>
+
+  <div id="filter-container">
+    <label for="confidenceFilter">Filter Confidence Level:</label>
+    <select id="confidenceFilter">
+      <option value="all">Semua</option>
+      <option value="medium">Medium</option>
+      <option value="high">High</option>
+    </select>
+  </div>
+
   <div id="map"></div>
+
   <div id="logo-kiri">
     <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Logo_KLHK.svg/120px-Logo_KLHK.svg.png" height="50">
   </div>
@@ -50,44 +64,66 @@
   <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
   <script>
     const map = L.map('map').setView([-2.5, 117], 5);
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      attribution: 'Tiles © Esri'
+
+    // Tile layer ESRI
+    L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles © Esri — Source: Esri, Earthstar Geographics'
     }).addTo(map);
 
     const url = "https://opensheet.elk.sh/1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI/Data%20Hotspot%20Nasional";
+    let allMarkers = [];
 
-    fetch(url)
-      .then(response => response.json())
-      .then(data => {
-        data.forEach(row => {
-          const lat = parseFloat(row.Latitude);
-          const lon = parseFloat(row.Longitude);
-          const confidence = row.Confidence_Level?.toLowerCase();
-          const color = confidence === 'high' ? 'red' : 'yellow';
+    function updateMap(filteredLevel) {
+      allMarkers.forEach(marker => map.removeLayer(marker));
+      allMarkers = [];
 
-          if (!isNaN(lat) && !isNaN(lon)) {
-            L.circleMarker([lat, lon], {
-              radius: 6,
-              fillColor: color,
-              color: "#000",
-              weight: 1,
-              opacity: 0.5,
-              fillOpacity: 0.5
-            }).addTo(map)
-              .bindPopup(`
-                <strong>${row["Tanggal & Jam"]}</strong><br>
-                ${row.Provinsi} - ${row["Kab/Kota"]}<br>
-                Desa: ${row.Desa}<br>
-                Confidence: ${row.Confidence_Level}<br>
-                Sumber: ${row.Sumber}
-              `);
-          }
+      fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          data.forEach(row => {
+            const lat = parseFloat(row.Latitude);
+            const lon = parseFloat(row.Longitude);
+            const confidence = row.Confidence_Level?.toLowerCase();
+
+            if (!isNaN(lat) && !isNaN(lon)) {
+              if (filteredLevel === 'all' || confidence === filteredLevel) {
+                const color = confidence === 'high' ? 'red' : 'yellow';
+
+                const marker = L.circleMarker([lat, lon], {
+                  radius: 6,
+                  fillColor: color,
+                  color: "#000",
+                  weight: 1,
+                  opacity: 0.5,
+                  fillOpacity: 0.5
+                }).addTo(map)
+                  .bindPopup(`
+                    <strong>${row["Tanggal & Jam"]}</strong><br>
+                    ${row.Provinsi} - ${row["Kab/Kota"]}<br>
+                    Desa: ${row.Desa}<br>
+                    Confidence: ${row.Confidence_Level}<br>
+                    Sumber: ${row.Sumber}
+                  `);
+
+                allMarkers.push(marker);
+              }
+            }
+          });
+        })
+        .catch(err => {
+          console.error("Gagal ambil data:", err);
+          alert("Gagal memuat data hotspot");
         });
-      })
-      .catch(err => {
-        console.error("Gagal ambil data:", err);
-        alert("Gagal memuat data hotspot");
-      });
+    }
+
+    // Inisialisasi pertama
+    updateMap('all');
+
+    // Event listener dropdown
+    document.getElementById('confidenceFilter').addEventListener('change', function () {
+      const selected = this.value;
+      updateMap(selected);
+    });
   </script>
 </body>
 </html>
