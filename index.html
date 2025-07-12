@@ -1,9 +1,12 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Peta Hotspot - Earth View</title>
+  <title>Peta Hotspot - Satellite View (Gratis)</title>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
     html, body, #map {
       height: 100%;
@@ -15,72 +18,59 @@
 <body>
   <div id="map"></div>
 
-  <!-- Ganti YOUR_API_KEY dengan API key kamu -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAGYK5QqYwmx6Pf6kpZJL9l0jzRTzQP8t0&libraries=maps"></script>
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
   <script>
     const sheetDataUrl = "https://script.google.com/macros/s/AKfycbwM8rZO1cOlMe6ivAaTEDkFjY2xt3fR33fwfqbL0PbWCGfyG_Kpm-7Phfq34eob9NcZ/exec";
 
-    function initMap() {
-      const map = new google.maps.Map(document.getElementById("map"), {
-        center: { lat: -2.5, lng: 117.5 },
-        zoom: 5,
-        mapTypeId: 'satellite',   // gunakan satellite untuk efek Earth
-        tilt: 45,                 // aktifkan tilt (kemiringan)
-        heading: 90               // arah peta
-      });
+    const map = L.map('map').setView([-2.5, 117.5], 5);
 
-      fetch(sheetDataUrl)
-        .then(res => res.json())
-        .then(data => {
-          data.forEach(row => {
-            const lat = parseFloat(row.Latitude);
-            const lon = parseFloat(row.Longitude);
-            const level = (row["Confidence_Level"] || "").toLowerCase();
+    // Gunakan tile satelit dari Esri (gratis dan legal)
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles © Esri | Source: Esri, Maxar, Earthstar Geographics',
+      maxZoom: 19
+    }).addTo(map);
 
-            if (!isNaN(lat) && !isNaN(lon)) {
-              const iconColor = level === "high" ? "red" : "yellow";
+    // Ambil dan tampilkan data hotspot
+    fetch(sheetDataUrl)
+      .then(res => res.json())
+      .then(data => {
+        data.forEach(row => {
+          const lat = parseFloat(row.Latitude);
+          const lon = parseFloat(row.Longitude);
+          const level = (row["Confidence_Level"] || "").toLowerCase();
 
-              const marker = new google.maps.Marker({
-                position: { lat, lng: lon },
-                map,
-                icon: {
-                  path: google.maps.SymbolPath.CIRCLE,
-                  scale: 8,
-                  fillColor: iconColor,
-                  fillOpacity: 0.5,
-                  strokeWeight: 1,
-                  strokeColor: iconColor,
-                },
-              });
+          if (!isNaN(lat) && !isNaN(lon)) {
+            const iconColor = level === "high" ? "red" : "yellow";
 
-              const infoWindow = new google.maps.InfoWindow({
-                content: `
-                  <b>${row["Tanggal & Jam"]}</b><br>
-                  Provinsi: ${row.Provinsi}<br>
-                  Kab/Kota: ${row["Kab/Kota"]}<br>
-                  Kec: ${row.Kecamatan}<br>
-                  Desa: ${row.Desa}<br>
-                  Sumber: ${row.Sumber}<br>
-                  Level: ${row.Confidence_Level}<br>
-                  <b>Latitude:</b> ${lat}<br>
-                  <b>Longitude:</b> ${lon}
-                `
-              });
+            const circle = L.circleMarker([lat, lon], {
+              radius: 8,
+              fillColor: iconColor,
+              color: iconColor,
+              weight: 1,
+              opacity: 1,
+              fillOpacity: 0.5
+            }).addTo(map);
 
-              marker.addListener("click", () => {
-                infoWindow.open(map, marker);
-              });
-            }
-          });
-        })
-        .catch(err => {
-          console.error("Gagal mengambil data:", err);
-          alert("Gagal mengambil data dari Google Spreadsheet.");
+            circle.bindPopup(`
+              <b>${row["Tanggal & Jam"]}</b><br>
+              Provinsi: ${row.Provinsi}<br>
+              Kab/Kota: ${row["Kab/Kota"]}<br>
+              Kec: ${row.Kecamatan}<br>
+              Desa: ${row.Desa}<br>
+              Sumber: ${row.Sumber}<br>
+              Level: ${row.Confidence_Level}<br>
+              <b>Latitude:</b> ${lat}<br>
+              <b>Longitude:</b> ${lon}
+            `);
+          }
         });
-    }
-
-    window.onload = initMap;
+      })
+      .catch(err => {
+        console.error("Gagal mengambil data:", err);
+        alert("Gagal mengambil data dari Google Sheet.");
+      });
   </script>
 </body>
 </html>
