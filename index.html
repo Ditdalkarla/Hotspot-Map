@@ -1,40 +1,64 @@
-<script>
-const sheetDataUrl = "https://script.google.com/macros/s/AKfycbwM8rZO1cOlMe6ivAaTEDkFjY2xt3fR33fwfqbL0PbWCGfyG_Kpm-7Phfq34eob9NcZ/exec";
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Peta Hotspot</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-const map = L.map('map').setView([-2.5, 117.5], 5);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '© OpenStreetMap contributors'
-}).addTo(map);
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    #map { height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
 
-fetch(sheetDataUrl)
-  .then(res => res.json())
-  .then(data => {
-    data.forEach(row => {
-      const lat = parseFloat(row.Latitude);
-      const lon = parseFloat(row.Longitude);
-      const level = row.Confidence_Level?.toLowerCase();
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-      if (!isNaN(lat) && !isNaN(lon)) {
-        const iconHtml = level === 'high' ? '🔥' : '🟡';
+  <script>
+    const sheetDataUrl = "https://script.google.com/macros/s/AKfycbwM8rZO1cOlMe6ivAaTEDkFjY2xt3fR33fwfqbL0PbWCGfyG_Kpm-7Phfq34eob9NcZ/exec";
 
-        const customIcon = L.divIcon({
-          html: `<div style="font-size: 16px; opacity: 0.5;">${iconHtml}</div>`,
-          iconSize: [16, 16],
-          className: '' // remove default icon class
+    const map = L.map('map').setView([-2.5, 117.5], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    fetch(sheetDataUrl)
+      .then(res => res.json())
+      .then(data => {
+        data.forEach(row => {
+          const lat = parseFloat(row.Latitude);
+          const lon = parseFloat(row.Longitude);
+          const level = (row["Confidence_Level"] || "").toLowerCase();
+          const iconHtml = level === "high" ? "🔥" : "🟡";
+
+          if (!isNaN(lat) && !isNaN(lon)) {
+            const icon = L.divIcon({
+              html: `<div style="font-size:16px;opacity:0.5;">${iconHtml}</div>`,
+              iconSize: [16, 16],
+              className: ""
+            });
+
+            const marker = L.marker([lat, lon], { icon }).addTo(map);
+
+            marker.bindPopup(`
+              <b>${row["Tanggal & Jam"]}</b><br>
+              Provinsi: ${row.Provinsi}<br>
+              Kab/Kota: ${row["Kab/Kota"]}<br>
+              Kec: ${row.Kecamatan}<br>
+              Desa: ${row.Desa}<br>
+              Sumber: ${row.Sumber}<br>
+              Level: ${row.Confidence_Level}
+            `);
+          }
         });
-
-        const marker = L.marker([lat, lon], { icon: customIcon }).addTo(map);
-
-        marker.bindPopup(`
-          <b>${row["Tanggal & Jam"]}</b><br>
-          Provinsi: ${row.Provinsi}<br>
-          Kab/Kota: ${row["Kab/Kota"]}<br>
-          Kec: ${row.Kecamatan}<br>
-          Desa: ${row.Desa}<br>
-          Sumber: ${row.Sumber}<br>
-          Level: ${row.Confidence_Level}
-        `);
-      }
-    });
-  });
-</script>
+      })
+      .catch(err => {
+        console.error("Gagal mengambil data:", err);
+        alert("Gagal mengambil data dari Google Script.");
+      });
+  </script>
+</body>
+</html>
