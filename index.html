@@ -68,8 +68,8 @@
   <div class="filters">
     <div class="checkbox-group">
       <h4>Confidence Level</h4>
-      <label><input type="checkbox" value="medium" checked> 🟡 Medium</label><br>
-      <label><input type="checkbox" value="high" checked> 🔴 High</label>
+      <label><input type="checkbox" class="confidence-filter" value="medium" checked> 🟡 Medium</label><br>
+      <label><input type="checkbox" class="confidence-filter" value="high" checked> 🔴 High</label>
     </div>
     <div class="checkbox-group">
       <h4>Tanggal</h4>
@@ -94,36 +94,42 @@
     const url = "https://opensheet.elk.sh/1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI/Data%20Hotspot%20Nasional";
     let rawData = [];
 
-    function extractTanggal(tanggalJam) {
-      // Ambil hanya bagian tanggal dari "Sabtu, 12 Juli 2025 11:36:00"
-      return tanggalJam.split(' ')[1] + ' ' + tanggalJam.split(' ')[2] + ' ' + tanggalJam.split(' ')[3];
+    // Mendapatkan 3 tanggal terakhir (hari ini dan 2 hari sebelumnya)
+    function getLastThreeDates() {
+      const options = { day: '2-digit', month: 'long', year: 'numeric' };
+      const result = [];
+      for (let i = 0; i < 3; i++) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        result.push(date.toLocaleDateString('id-ID', options));
+      }
+      return result;
     }
 
-    function renderFilterTanggal(data) {
-      const tanggalSet = new Set();
-      data.forEach(row => {
-        if (row["Tanggal & Jam"]) {
-          tanggalSet.add(extractTanggal(row["Tanggal & Jam"]));
-        }
-      });
+    function extractTanggal(tanggalJam) {
+      // Ambil hanya bagian tanggal dari "Sabtu, 12 Juli 2025 11:36:00"
+      const parts = tanggalJam.split(',')[1]?.trim().split(' ') || [];
+      return parts.slice(0, 3).join(' ');
+    }
 
+    function renderFilterTanggal() {
       const tanggalFilterDiv = document.getElementById("tanggal-filter");
-      tanggalFilterDiv.innerHTML = "";
+      const tanggalList = getLastThreeDates();
 
-      [...tanggalSet].sort().forEach(tanggal => {
-        const id = `tgl-${tanggal.replace(/\s+/g, '-')}`;
+      tanggalFilterDiv.innerHTML = "";
+      tanggalList.forEach(tgl => {
         tanggalFilterDiv.innerHTML += `
-          <label><input type="checkbox" value="${tanggal}" checked> ${tanggal}</label><br>
+          <label><input type="checkbox" class="tanggal-filter" value="${tgl}" checked> ${tgl}</label><br>
         `;
       });
     }
 
     function getSelectedFilters() {
-      const levels = Array.from(document.querySelectorAll('.filters input[type=checkbox][value="medium"], .filters input[type=checkbox][value="high"]'))
+      const levels = Array.from(document.querySelectorAll('.confidence-filter'))
         .filter(cb => cb.checked)
         .map(cb => cb.value);
 
-      const tanggal = Array.from(document.querySelectorAll('#tanggal-filter input[type=checkbox]'))
+      const tanggal = Array.from(document.querySelectorAll('.tanggal-filter'))
         .filter(cb => cb.checked)
         .map(cb => cb.value);
 
@@ -138,12 +144,11 @@
         const lat = parseFloat(row.Latitude);
         const lon = parseFloat(row.Longitude);
         const conf = row.Confidence_Level?.toLowerCase();
-        const sumber = row.Sumber || "";
-        const lokasi = `${row.Provinsi} - ${row["Kab/Kota"]}`;
         const waktu = row["Tanggal & Jam"] || "";
-        const desa = row.Desa || "";
-
         const tanggalOnly = extractTanggal(waktu);
+        const lokasi = `${row.Provinsi} - ${row["Kab/Kota"]}`;
+        const desa = row.Desa || "";
+        const sumber = row.Sumber || "";
 
         if (!isNaN(lat) && !isNaN(lon) && levels.includes(conf) && tanggal.includes(tanggalOnly)) {
           const color = conf === 'high' ? 'red' : 'yellow';
@@ -173,13 +178,14 @@
         .then(res => res.json())
         .then(data => {
           rawData = data;
-          renderFilterTanggal(data);
+          renderFilterTanggal();
           applyFilters();
-        });
 
-      document.querySelectorAll('.filters input[type=checkbox]').forEach(cb => {
-        cb.addEventListener('change', applyFilters);
-      });
+          // Tambahkan event listener setelah checklist tanggal tersedia
+          document.querySelectorAll('.filters input[type=checkbox]').forEach(cb => {
+            cb.addEventListener('change', applyFilters);
+          });
+        });
     }
 
     init();
