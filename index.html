@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <title>Peta Hotspot</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
+
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
@@ -66,9 +66,9 @@
 
   <!-- Header -->
   <div class="header">
-    <img src="logo-kanan.png" class="logo" alt="Logo Kiri">
+    <img src="2a269fb1-cb56-4360-8482-a5d32e47430e.png" class="logo" alt="Logo Kiri">
     <div class="title">DIREKTORAT PENGENDALIAN KEBAKARAN LAHAN</div>
-    <img src="logo-kiri.jpeg" class="logo" alt="Logo Kanan">
+    <img src="logo-kanan.png" class="logo" alt="Logo Kanan">
   </div>
   <div class="subtitle">Peta Hotspot Level Confidence Medium - High selama rentang 3 hari</div>
 
@@ -83,32 +83,12 @@
     let hotspotLayer;
 
     function initMap() {
-      map = L.map('map').setView([-2.5, 117], 5); // Center Indonesia
+      map = L.map('map').setView([-2.5, 117], 5);
 
-      // ESRI Imagery
-      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: '&copy; Esri',
-        maxZoom: 18
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        attribution: '&copy; OpenStreetMap contributors'
       }).addTo(map);
-
-      // Load GeoJSON wilayah administrasi
-      fetch('wilayah_administrasi.json')
-        .then(res => res.json())
-        .then(geojson => {
-          L.geoJSON(geojson, {
-            style: {
-              color: "#3388ff",
-              weight: 2,
-              opacity: 0.7,
-              fillOpacity: 0.05
-            },
-            onEachFeature: function (feature, layer) {
-              if (feature.properties && feature.properties.nama) {
-                layer.bindPopup("Wilayah: " + feature.properties.nama);
-              }
-            }
-          }).addTo(map);
-        });
 
       loadHotspotData();
     }
@@ -119,7 +99,6 @@
       fetch(url)
         .then(response => response.json())
         .then(data => {
-          // Hapus layer lama jika ada
           if (hotspotLayer) {
             map.removeLayer(hotspotLayer);
           }
@@ -172,10 +151,8 @@
     };
     legend.addTo(map);
 
-    // Inisialisasi peta saat halaman dimuat
     window.onload = () => {
       initMap();
-      // Refresh hotspot data setiap 15 menit (900.000 ms)
       setInterval(loadHotspotData, 15 * 60 * 1000);
     };
   </script>
