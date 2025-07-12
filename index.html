@@ -1,14 +1,21 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Peta Hotspot</title>
-  <meta charset="utf-8" />
+  <meta charset="utf-8">
+  <title>Hotspot Map</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
-    #map { height: 100vh; }
+    #map {
+      height: 100vh;
+      width: 100%;
+    }
+    .legend {
+      background: white;
+      padding: 10px;
+      line-height: 1.5em;
+    }
   </style>
 </head>
 <body>
@@ -17,42 +24,69 @@
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-  <!-- Ganti URL di bawah ini dengan link Web App dari Google Script -->
   <script>
-    const sheetDataUrl = "https://script.google.com/macros/s/AKfycbwM8rZO1cOlMe6ivAaTEDkFjY2xt3fR33fwfqbL0PbWCGfyG_Kpm-7Phfq34eob9NcZ/exec";
+    // Ganti URL di bawah dengan Web App Script kamu
+    const DATA_URL = "https://script.google.com/macros/s/AKfycbwM8rZO1cOlMe6ivAaTEDkFjY2xt3fR33fwfqbL0PbWCGfyG_Kpm-7Phfq34eob9NcZ/exec";
 
-    const map = L.map('map').setView([-2.5, 117.5], 5); // Tengah Indonesia
+    // Ikon api warna kuning (medium)
+    const yellowIcon = new L.Icon({
+      iconUrl: 'https://cdn-icons-png.flaticon.com/512/482/482493.png',
+      iconSize: [25, 25],
+      iconAnchor: [12, 25],
+      popupAnchor: [0, -25],
+      className: 'yellow-fire'
+    });
+
+    // Ikon api warna merah (high)
+    const redIcon = new L.Icon({
+      iconUrl: 'https://cdn-icons-png.flaticon.com/512/482/482495.png',
+      iconSize: [25, 25],
+      iconAnchor: [12, 25],
+      popupAnchor: [0, -25],
+      className: 'red-fire'
+    });
+
+    const map = L.map('map').setView([-2.5, 117], 5); // Fokus Indonesia
+
+    // Tambahkan tile peta
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
-    fetch(sheetDataUrl)
-      .then(res => res.json())
-      .then(data => {
-        data.forEach(row => {
-          const lat = parseFloat(row.Latitude);
-          const lon = parseFloat(row.Longitude);
-          const level = row.Confidence_Level.toLowerCase();
-          const color = level === 'high' ? 'red' : 'yellow';
+    // Ambil data dan tampilkan
+    async function fetchHotspot() {
+      try {
+        const response = await fetch(DATA_URL);
+        const data = await response.json();
 
-          if (!isNaN(lat) && !isNaN(lon)) {
-            const circle = L.circleMarker([lat, lon], {
-              radius: 8,
-              color: color,
-              fillOpacity: 0.5
-            }).addTo(map);
-            circle.bindPopup(`
-              <b>${row["Tanggal & Jam"]}</b><br>
-              Provinsi: ${row.Provinsi}<br>
-              Kab/Kota: ${row["Kab/Kota"]}<br>
-              Kec: ${row.Kecamatan}<br>
-              Desa: ${row.Desa}<br>
-              Sumber: ${row.Sumber}<br>
-              Level: ${row.Confidence_Level}
-            `);
-          }
+        data.forEach((item) => {
+          const lat = parseFloat(item.Latitude);
+          const lng = parseFloat(item.Longitude);
+          const level = item.Confidence_Level.toLowerCase();
+
+          if (isNaN(lat) || isNaN(lng)) return;
+
+          const popup = `
+            <strong>${item["Tanggal & Jam"]}</strong><br>
+            ${item.Desa}, ${item.Kecamatan}, ${item["Kab/Kota"]}, ${item.Provinsi}<br>
+            <strong>Confidence:</strong> ${item.Confidence_Level}<br>
+            <strong>Sumber:</strong> ${item.Sumber}
+          `;
+
+          let icon = yellowIcon;
+          if (level === 'high') icon = redIcon;
+
+          L.marker([lat, lng], { icon: icon, opacity: 0.5 })
+            .bindPopup(popup)
+            .addTo(map);
         });
-      });
+      } catch (e) {
+        console.error("Gagal memuat data:", e);
+      }
+    }
+
+    fetchHotspot();
+    setInterval(fetchHotspot, 15 * 60 * 1000); // refresh tiap 15 menit
   </script>
 </body>
 </html>
