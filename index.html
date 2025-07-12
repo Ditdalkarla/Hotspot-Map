@@ -14,6 +14,7 @@
 
     body {
       font-family: sans-serif;
+      overflow-x: hidden; /* fix: hindari scroll horizontal */
     }
 
     .header {
@@ -62,6 +63,8 @@
       font-size: 13px;
       z-index: 999;
       box-shadow: 0 1px 6px rgba(0,0,0,0.2);
+      max-width: 90vw; /* fix: batasi lebar di mobile */
+      overflow-wrap: break-word;
     }
 
     .filters h4 {
@@ -78,9 +81,19 @@
       .logo {
         height: 28px;
       }
+
       .title {
         font-size: 11px;
         padding: 0 4px;
+      }
+
+      .header {
+        height: auto;
+        padding: 6px;
+      }
+
+      #map {
+        top: 60px; /* pastikan sesuai header */
       }
     }
   </style>
