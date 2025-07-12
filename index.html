@@ -66,7 +66,7 @@
 
   <!-- Header -->
   <div class="header">
-    <img src="2a269fb1-cb56-4360-8482-a5d32e47430e.png" class="logo" alt="Logo Kiri">
+    <img src="logo-kiri.png" class="logo" alt="Logo Kiri">
     <div class="title">DIREKTORAT PENGENDALIAN KEBAKARAN LAHAN</div>
     <img src="logo-kanan.png" class="logo" alt="Logo Kanan">
   </div>
@@ -85,9 +85,10 @@
     function initMap() {
       map = L.map('map').setView([-2.5, 117], 5);
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 18,
-        attribution: '&copy; OpenStreetMap contributors'
+      // ESRI World Imagery layer
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri — Source: Esri, Earthstar Geographics',
+        maxZoom: 18
       }).addTo(map);
 
       loadHotspotData();
@@ -151,9 +152,10 @@
     };
     legend.addTo(map);
 
+    // Initialize map and auto-refresh
     window.onload = () => {
       initMap();
-      setInterval(loadHotspotData, 15 * 60 * 1000);
+      setInterval(loadHotspotData, 15 * 60 * 1000); // Refresh every 15 minutes
     };
   </script>
 </body>
