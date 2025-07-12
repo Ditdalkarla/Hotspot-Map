@@ -28,37 +28,48 @@
       border-radius: 8px;
       box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
       font-family: sans-serif;
+      font-size: 14px;
     }
 
     #filter-container label {
-      display: block;
-      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
     }
 
+    .color-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .dot-yellow { background: yellow; border: 1px solid #aaa; }
+    .dot-red { background: red; }
+
+    /* Logo kiri atas */
     #logo-kiri {
       position: absolute;
-      bottom: 10px;
+      top: 10px;
       left: 10px;
-      z-index: 1000;
-      background: white;
-      padding: 6px;
-      border-radius: 6px;
+      z-index: 1001;
     }
 
     #logo-kiri img {
       height: 50px;
     }
 
+    /* Logo kanan atas */
     #logo-kanan {
       position: absolute;
-      bottom: 10px;
+      top: 10px;
       right: 10px;
-      z-index: 1000;
-      background: rgba(255, 255, 255, 0.8);
-      padding: 6px 10px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-family: sans-serif;
+      z-index: 1001;
+    }
+
+    #logo-kanan img {
+      height: 50px;
     }
   </style>
 </head>
@@ -68,33 +79,33 @@
     <small>Peta Hotspot Confidence Level Medium - High (3 Hari Terakhir)</small>
   </header>
 
-  <!-- FILTER CHECKLIST -->
+  <!-- Logo kiri atas -->
+  <div id="logo-kiri">
+    <img src="logo-kiri.png" alt="Logo Kiri">
+  </div>
+
+  <!-- Logo kanan atas -->
+  <div id="logo-kanan">
+    <img src="logo-kanan.png" alt="Logo Kanan">
+  </div>
+
+  <!-- Filter checklist -->
   <div id="filter-container">
-    <strong>Filter Confidence:</strong>
-    <label><input type="checkbox" class="confidence-check" value="medium" checked> Medium</label>
-    <label><input type="checkbox" class="confidence-check" value="high" checked> High</label>
+    <strong>Confidence Level</strong>
+    <label><span class="color-dot dot-yellow"></span><input type="checkbox" class="confidence-check" value="medium" checked> Medium</label>
+    <label><span class="color-dot dot-red"></span><input type="checkbox" class="confidence-check" value="high" checked> High</label>
   </div>
 
   <div id="map"></div>
 
-  <!-- LOGO KIRI -->
-  <div id="logo-kiri">
-    <img src="https://upload.wikimedia.org/wikipedia/commons/2/2e/Logo_KLHK.svg" alt="Logo KLHK">
-  </div>
-
-  <!-- LABEL KANAN -->
-  <div id="logo-kanan">
-    &copy; KLHK 2025 - Direktorat PKHL
-  </div>
-
-  <!-- SCRIPT -->
+  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
   <script>
     const map = L.map('map').setView([-2.5, 117], 5);
 
     // ESRI tile layer
     L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      attribution: 'Tiles © Esri — Source: Esri, Earthstar Geographics'
+      attribution: 'Tiles © Esri'
     }).addTo(map);
 
     const url = "https://opensheet.elk.sh/1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI/Data%20Hotspot%20Nasional";
@@ -146,10 +157,8 @@
         });
     }
 
-    // Jalankan saat pertama kali
     updateMap();
 
-    // Update saat checkbox diubah
     document.querySelectorAll('.confidence-check').forEach(cb => {
       cb.addEventListener('change', updateMap);
     });
