@@ -4,28 +4,16 @@
   <meta charset="utf-8" />
   <title>Peta Hotspot</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
   <style>
-    body, html {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-    }
-    #map {
-      position: absolute;
-      top: 100px;
-      bottom: 0;
-      left: 0;
-      right: 0;
-    }
+    html, body { height: 100%; margin: 0; padding: 0; }
+    #map { height: 90vh; }
     header {
       background-color: #444;
       color: white;
       padding: 15px;
       text-align: center;
       font-weight: bold;
-      font-size: 20px;
     }
   </style>
 </head>
@@ -35,25 +23,18 @@
     <small>Peta Hotspot Level Confidence Medium - High selama rentang 3 hari</small>
   </header>
   <div id="map"></div>
-
-  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-
   <script>
-    console.log("Memulai peta...");
-
-    const map = L.map('map').setView([-2.5, 117], 5); // Fokus Indonesia
+    const map = L.map('map').setView([-2.5, 117], 5);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
-    // URL dari Google Sheet yang sudah dipublikasikan via opensheet.elk.sh
     const url = "https://opensheet.elk.sh/1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI/Data%20Hotspot%20Nasional";
 
     fetch(url)
       .then(response => response.json())
       .then(data => {
-        console.log("Jumlah data:", data.length);
         data.forEach(row => {
           const lat = parseFloat(row.Latitude);
           const lon = parseFloat(row.Longitude);
