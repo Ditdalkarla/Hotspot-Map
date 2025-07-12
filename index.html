@@ -8,6 +8,7 @@
   <style>
     html, body { height: 100%; margin: 0; padding: 0; }
     #map { height: 100vh; }
+
     header {
       background-color: #444;
       color: white;
@@ -15,36 +16,49 @@
       text-align: center;
       font-weight: bold;
       font-size: 16px;
-      z-index: 1000;
     }
+
     #filter-container {
       position: absolute;
       top: 70px;
       left: 10px;
       background: white;
-      padding: 8px;
+      padding: 10px;
       z-index: 1000;
-      border-radius: 5px;
-      box-shadow: 0 0 5px rgba(0,0,0,0.3);
+      border-radius: 8px;
+      box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
+      font-family: sans-serif;
     }
+
+    #filter-container label {
+      display: block;
+      margin-bottom: 4px;
+    }
+
     #logo-kiri {
       position: absolute;
       bottom: 10px;
       left: 10px;
       z-index: 1000;
       background: white;
-      padding: 5px;
-      border-radius: 5px;
+      padding: 6px;
+      border-radius: 6px;
     }
+
+    #logo-kiri img {
+      height: 50px;
+    }
+
     #logo-kanan {
       position: absolute;
       bottom: 10px;
       right: 10px;
       z-index: 1000;
       background: rgba(255, 255, 255, 0.8);
-      padding: 5px 10px;
-      border-radius: 5px;
+      padding: 6px 10px;
+      border-radius: 6px;
       font-size: 12px;
+      font-family: sans-serif;
     }
   </style>
 </head>
@@ -54,32 +68,31 @@
     <small>Peta Hotspot Confidence Level Medium - High (3 Hari Terakhir)</small>
   </header>
 
+  <!-- FILTER CHECKLIST -->
   <div id="filter-container">
-    <label for="confidenceFilter">Confidence:</label>
-    <select id="confidenceFilter">
-      <option value="all">Semua</option>
-      <option value="medium">Medium</option>
-      <option value="high">High</option>
-    </select>
+    <strong>Filter Confidence:</strong>
+    <label><input type="checkbox" class="confidence-check" value="medium" checked> Medium</label>
+    <label><input type="checkbox" class="confidence-check" value="high" checked> High</label>
   </div>
 
   <div id="map"></div>
 
-  <!-- Logo Kiri -->
+  <!-- LOGO KIRI -->
   <div id="logo-kiri">
-    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Logo_KLHK.svg/100px-Logo_KLHK.svg.png" height="50">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/2/2e/Logo_KLHK.svg" alt="Logo KLHK">
   </div>
 
-  <!-- Label Kanan -->
+  <!-- LABEL KANAN -->
   <div id="logo-kanan">
-    &copy; KLHK 2025
+    &copy; KLHK 2025 - Direktorat PKHL
   </div>
 
+  <!-- SCRIPT -->
   <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
   <script>
     const map = L.map('map').setView([-2.5, 117], 5);
 
-    // Gunakan ESRI tile map
+    // ESRI tile layer
     L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       attribution: 'Tiles © Esri — Source: Esri, Earthstar Geographics'
     }).addTo(map);
@@ -87,9 +100,11 @@
     const url = "https://opensheet.elk.sh/1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI/Data%20Hotspot%20Nasional";
     let allMarkers = [];
 
-    function updateMap(confidenceLevel) {
-      allMarkers.forEach(marker => map.removeLayer(marker));
+    function updateMap() {
+      allMarkers.forEach(m => map.removeLayer(m));
       allMarkers = [];
+
+      const selectedConfidences = Array.from(document.querySelectorAll('.confidence-check:checked')).map(cb => cb.value);
 
       fetch(url)
         .then(response => response.json())
@@ -99,30 +114,29 @@
             const lon = parseFloat(row.Longitude);
             const confidence = row.Confidence_Level?.toLowerCase();
 
-            if (!isNaN(lat) && !isNaN(lon)) {
-              if (confidenceLevel === 'all' || confidence === confidenceLevel) {
-                const color = confidence === 'high' ? 'red' : 'yellow';
-                const marker = L.circleMarker([lat, lon], {
-                  radius: 6,
-                  fillColor: color,
-                  color: "#000",
-                  weight: 1,
-                  opacity: 0.5,
-                  fillOpacity: 0.5
-                }).addTo(map);
+            if (!isNaN(lat) && !isNaN(lon) && selectedConfidences.includes(confidence)) {
+              const color = confidence === 'high' ? 'red' : 'yellow';
 
-                marker.bindPopup(`
-                  <strong>${row["Tanggal & Jam"]}</strong><br>
-                  ${row.Provinsi} - ${row["Kab/Kota"]}, ${row.Kecamatan}<br>
-                  Desa: ${row.Desa}<br>
-                  Confidence: ${row.Confidence_Level}<br>
-                  Sumber: ${row.Sumber}<br>
-                  Lat: ${lat.toFixed(5)}<br>
-                  Long: ${lon.toFixed(5)}
-                `);
+              const marker = L.circleMarker([lat, lon], {
+                radius: 6,
+                fillColor: color,
+                color: "#000",
+                weight: 1,
+                opacity: 0.5,
+                fillOpacity: 0.5
+              }).addTo(map);
 
-                allMarkers.push(marker);
-              }
+              marker.bindPopup(`
+                <strong>${row["Tanggal & Jam"]}</strong><br>
+                ${row.Provinsi} - ${row["Kab/Kota"]}, ${row.Kecamatan}<br>
+                Desa: ${row.Desa}<br>
+                Confidence: ${row.Confidence_Level}<br>
+                Sumber: ${row.Sumber}<br>
+                Latitude: ${lat.toFixed(5)}<br>
+                Longitude: ${lon.toFixed(5)}
+              `);
+
+              allMarkers.push(marker);
             }
           });
         })
@@ -132,12 +146,12 @@
         });
     }
 
-    // Inisialisasi pertama
-    updateMap('all');
+    // Jalankan saat pertama kali
+    updateMap();
 
-    // Dropdown filter listener
-    document.getElementById('confidenceFilter').addEventListener('change', function () {
-      updateMap(this.value);
+    // Update saat checkbox diubah
+    document.querySelectorAll('.confidence-check').forEach(cb => {
+      cb.addEventListener('change', updateMap);
     });
   </script>
 </body>
