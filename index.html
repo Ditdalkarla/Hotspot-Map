@@ -35,8 +35,8 @@
       padding: 0 8px;
     }
 
-    .main { flex: 1; position: relative; display: flex; flex-direction: column; }
-    #map { width: 100%; height: 100%; flex: 1; }
+    .main { flex: 1; position: relative; }
+    #map { width: 100%; height: 100%; }
 
     .filters {
       position: absolute;
@@ -112,29 +112,28 @@
       .main { height: calc(100% - 50px); }
 
       .filters {
-        position: static;
-        width: 100%;
-        transform: none;
-        border-radius: 0;
-        box-shadow: none;
-        max-width: 100%;
-        overflow-y: auto;
-        font-size: 12px;
-        background: white;
-        margin-top: auto;
-        padding: 8px;
-
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 8px;
+        font-size: 11px;
+        padding: 6px;
+        max-width: 90vw;
       }
 
-      .filters h4,
-      .filters .dropdown,
-      .filters button,
-      #tanggal-filter,
-      #sumber-filter {
-        grid-column: span 2;
+      .filters h4 {
+        font-size: 12px;
+        margin: 6px 0 4px;
+      }
+
+      .filters label {
+        margin-bottom: 2px;
+      }
+
+      .export-button {
+        padding: 4px 8px;
+        font-size: 11px;
+      }
+
+      .dropdown-content a {
+        font-size: 11px;
+        padding: 6px 8px;
       }
     }
 
@@ -161,8 +160,6 @@
   </div>
 
   <div class="main">
-    <div id="map"></div>
-
     <div class="filters">
       <h4>Confidence Level</h4>
       <label><input type="checkbox" class="confidence-filter" value="medium" checked> 🟡 Medium</label>
@@ -186,6 +183,8 @@
 
       <button class="export-button" onclick="window.print()">🖨️ Cetak Peta</button>
     </div>
+
+    <div id="map"></div>
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
