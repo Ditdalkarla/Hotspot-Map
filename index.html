@@ -216,6 +216,7 @@
         const tanggalOnly = extractTanggal(waktu);
         const lokasi = `${row.Provinsi} - ${row["Kab/Kota"]}`;
         const desa = row.Desa || "";
+        const kecamatan = row.Kecamatan || "";
         const sumberVal = row.Sumber?.trim() || "";
 
         if (!isNaN(lat) && !isNaN(lon) &&
@@ -236,6 +237,7 @@
             .bindPopup(`
               <b>${waktu}</b><br>
               ${lokasi}<br>
+              Kecamatan: ${kecamatan}<br>
               Desa: ${desa}<br>
               Confidence: ${conf}<br>
               Sumber: ${sumberVal}<br>
