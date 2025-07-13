@@ -5,11 +5,12 @@
   <title>Peta Hotspot</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-
     html, body { height: 100%; font-family: sans-serif; }
-
     body { display: flex; flex-direction: column; }
 
     .header {
@@ -35,7 +36,6 @@
     }
 
     .main { flex: 1; position: relative; }
-
     #map { width: 100%; height: 100%; }
 
     .filters {
@@ -63,37 +63,14 @@
     }
 
     .export-button {
-      margin-top: 10px;
-      padding: 6px 12px;
+      margin: 4px 4px 0 0;
+      padding: 6px 10px;
       background-color: #444;
       color: white;
       border: none;
       border-radius: 4px;
-      cursor: pointer;
-    }
-
-    @media print {
-      body { display: block; }
-      #map, .filters, .header { display: none !important; }
-      .print-table { display: block !important; }
-    }
-
-    .print-table {
-      display: none;
-      padding: 16px;
-    }
-
-    table {
-      border-collapse: collapse;
-      width: 100%;
       font-size: 12px;
-    }
-
-    table, th, td { border: 1px solid #ccc; }
-
-    th, td {
-      padding: 6px;
-      text-align: left;
+      cursor: pointer;
     }
 
     @media (max-width: 600px) {
@@ -102,11 +79,20 @@
       .header { height: 50px; }
       .main { height: calc(100% - 50px); }
     }
+
+    @media print {
+      .header, .filters {
+        display: none !important;
+      }
+      #map {
+        height: 100vh !important;
+        width: 100vw !important;
+      }
+    }
   </style>
 </head>
 <body>
 
-  <!-- Header -->
   <div class="header">
     <img src="logo-kiri.png" class="logo" alt="Logo Kiri">
     <div class="title">
@@ -116,7 +102,6 @@
     <img src="logo-kanan.png" class="logo" alt="Logo Kanan">
   </div>
 
-  <!-- Kontainer utama -->
   <div class="main">
     <div class="filters">
       <h4>Confidence Level</h4>
@@ -129,19 +114,19 @@
       <h4>Sumber</h4>
       <div id="sumber-filter">Memuat sumber...</div>
 
-      <button class="export-button" onclick="printData()">🖨️ Cetak PDF</button>
+      <h4>Export</h4>
+      <button class="export-button" onclick="window.print()">🖨️ Cetak Peta</button>
+      <button class="export-button" onclick="exportTable('csv')">📄 CSV</button>
+      <button class="export-button" onclick="exportTable('xlsx')">📄 XLSX</button>
+      <button class="export-button" onclick="exportTable('pdf')">📄 PDF</button>
     </div>
 
     <div id="map"></div>
-    <div class="print-table" id="printTableContainer"></div>
   </div>
 
-  <!-- Leaflet Script -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     const map = L.map('map', { attributionControl: false }).setView([-2.5, 117], 5);
-
-    // Peta dasar: ESRI World Imagery
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       maxZoom: 18
     }).addTo(map);
@@ -150,10 +135,8 @@
     let geojsonLayer = null;
 
     const url = "https://opensheet.elk.sh/1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI/Data%20Hotspot%20Nasional";
-    const geojsonURL = "https://example.com/wilayah_administrasiprovinsi.geojson"; // Ganti link jika ada
-
+    const geojsonURL = "https://example.com/wilayah_administrasiprovinsi.geojson"; // Ganti URL sesuai file kamu
     let rawData = [];
-    let filteredData = [];
 
     function getLastThreeDates() {
       const options = { day: '2-digit', month: 'long', year: 'numeric' };
@@ -200,7 +183,6 @@
     function applyFilters() {
       const { levels, tanggal, sumber } = getSelectedFilters();
       hotspotLayer.clearLayers();
-      filteredData = [];
 
       rawData.forEach(row => {
         const lat = parseFloat(row.Latitude);
@@ -217,8 +199,6 @@
             levels.includes(conf) &&
             tanggal.includes(tanggalOnly) &&
             sumber.includes(sumberVal)) {
-
-          filteredData.push({ waktu, lokasi, kecamatan, desa, conf, sumberVal, lat, lon });
 
           const color = conf === 'high' ? 'red' : 'yellow';
 
@@ -242,50 +222,13 @@
       });
     }
 
-    function printData() {
-      const container = document.getElementById("printTableContainer");
-      container.innerHTML = `
-        <h3>Daftar Hotspot Terfilter</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>No</th>
-              <th>Waktu</th>
-              <th>Lokasi</th>
-              <th>Kecamatan</th>
-              <th>Desa</th>
-              <th>Confidence</th>
-              <th>Sumber</th>
-              <th>Latitude</th>
-              <th>Longitude</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${filteredData.map((d, i) => `
-              <tr>
-                <td>${i + 1}</td>
-                <td>${d.waktu}</td>
-                <td>${d.lokasi}</td>
-                <td>${d.kecamatan}</td>
-                <td>${d.desa}</td>
-                <td>${d.conf}</td>
-                <td>${d.sumberVal}</td>
-                <td>${d.lat}</td>
-                <td>${d.lon}</td>
-              </tr>`).join("")}
-          </tbody>
-        </table>
-      `;
-      window.print();
-    }
-
     function fetchAndRenderData() {
       fetch(url)
         .then(res => res.json())
         .then(data => {
           rawData = data;
           renderFilterTanggal();
-          renderFilterSumber(rawData);
+          renderFilterSumber(data);
           applyFilters();
           document.querySelectorAll('.filters input[type=checkbox]').forEach(cb => {
             cb.addEventListener('change', applyFilters);
@@ -307,6 +250,36 @@
             }
           }).addTo(map);
         });
+    }
+
+    function exportTable(format) {
+      const { levels, tanggal, sumber } = getSelectedFilters();
+      const filtered = rawData.filter(row => {
+        const conf = row.Confidence_Level?.toLowerCase();
+        const tgl = extractTanggal(row["Tanggal & Jam"] || "");
+        const sumberVal = row.Sumber?.trim() || "";
+        return levels.includes(conf) && tanggal.includes(tgl) && sumber.includes(sumberVal);
+      });
+
+      if (format === 'csv' || format === 'xlsx') {
+        const ws = XLSX.utils.json_to_sheet(filtered);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Hotspot");
+        XLSX.writeFile(wb, `hotspot.${format}`);
+      } else if (format === 'pdf') {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const table = filtered.map(r => [
+          r["Tanggal & Jam"] || "", r.Provinsi, r["Kab/Kota"], r.Kecamatan, r.Desa,
+          r.Latitude, r.Longitude, r.Confidence_Level, r.Sumber
+        ]);
+        doc.autoTable({
+          head: [['Tanggal & Jam', 'Provinsi', 'Kab/Kota', 'Kecamatan', 'Desa', 'Lat', 'Lng', 'Confidence', 'Sumber']],
+          body: table,
+          styles: { fontSize: 8 }
+        });
+        doc.save("hotspot.pdf");
+      }
     }
 
     function init() {
