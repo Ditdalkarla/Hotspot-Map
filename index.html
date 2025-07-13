@@ -123,6 +123,18 @@
         background: white;
         margin-top: auto;
         padding: 8px;
+
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+      }
+
+      .filters h4,
+      .filters .dropdown,
+      .filters button,
+      #tanggal-filter,
+      #sumber-filter {
+        grid-column: span 2;
       }
     }
 
@@ -187,7 +199,7 @@
     let geojsonLayer = null;
 
     const url = "https://opensheet.elk.sh/1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI/Data%20Hotspot%20Nasional";
-    const geojsonURL = "https://example.com/wilayah_administrasiprovinsi.geojson"; // Ganti sesuai file kamu
+    const geojsonURL = "https://example.com/wilayah_administrasiprovinsi.geojson";
     let rawData = [];
 
     function getLastThreeDates() {
