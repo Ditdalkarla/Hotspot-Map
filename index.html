@@ -113,6 +113,16 @@
     }
 
     @media print {
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
       .header, .filters {
         display: none !important;
       }
@@ -124,7 +134,6 @@
   </style>
 </head>
 <body>
-
   <div class="header">
     <img src="logo-kiri.png" class="logo" alt="Logo Kiri">
     <div class="title">
@@ -156,7 +165,7 @@
         </div>
       </div>
 
-      <button class="export-button" onclick="window.print()">🖨️ Cetak Peta</button>
+      <button class="export-button" onclick="printMap()">🖨️ Cetak Peta</button>
     </div>
 
     <div id="map"></div>
@@ -169,164 +178,10 @@
       maxZoom: 18
     }).addTo(map);
 
-    const hotspotLayer = L.layerGroup().addTo(map);
-    let geojsonLayer = null;
-
-    const url = "https://opensheet.elk.sh/1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI/Data%20Hotspot%20Nasional";
-    const geojsonURL = "https://example.com/wilayah_administrasiprovinsi.geojson"; // Ganti sesuai file kamu
-    let rawData = [];
-
-    function getLastThreeDates() {
-      const options = { day: '2-digit', month: 'long', year: 'numeric' };
-      const result = [];
-      for (let i = 0; i < 3; i++) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        result.push(date.toLocaleDateString('id-ID', options));
-      }
-      return result;
+    function printMap() {
+      setTimeout(() => { map.invalidateSize(); }, 300);
+      setTimeout(() => { window.print(); }, 600);
     }
-
-    function extractTanggal(tanggalJam) {
-      const parts = tanggalJam.split(',')[1]?.trim().split(' ') || [];
-      return parts.slice(0, 3).join(' ');
-    }
-
-    function renderFilterTanggal() {
-      const div = document.getElementById("tanggal-filter");
-      const list = getLastThreeDates();
-      div.innerHTML = "";
-      list.forEach(tgl => {
-        div.innerHTML += `<label><input type="checkbox" class="tanggal-filter" value="${tgl}" checked> ${tgl}</label>`;
-      });
-    }
-
-    function renderFilterSumber(data) {
-      const sumberSet = new Set();
-      data.forEach(row => { if (row.Sumber) sumberSet.add(row.Sumber.trim()); });
-      const div = document.getElementById("sumber-filter");
-      div.innerHTML = "";
-      Array.from(sumberSet).sort().forEach(src => {
-        div.innerHTML += `<label><input type="checkbox" class="sumber-filter" value="${src}" checked> ${src}</label>`;
-      });
-    }
-
-    function getSelectedFilters() {
-      const levels = [...document.querySelectorAll('.confidence-filter:checked')].map(cb => cb.value);
-      const tanggal = [...document.querySelectorAll('.tanggal-filter:checked')].map(cb => cb.value);
-      const sumber = [...document.querySelectorAll('.sumber-filter:checked')].map(cb => cb.value);
-      return { levels, tanggal, sumber };
-    }
-
-    function applyFilters() {
-      const { levels, tanggal, sumber } = getSelectedFilters();
-      hotspotLayer.clearLayers();
-
-      rawData.forEach(row => {
-        const lat = parseFloat(row.Latitude);
-        const lon = parseFloat(row.Longitude);
-        const conf = row.Confidence_Level?.toLowerCase();
-        const waktu = row["Tanggal & Jam"] || "";
-        const tanggalOnly = extractTanggal(waktu);
-        const lokasi = `${row.Provinsi} - ${row["Kab/Kota"]}`;
-        const kecamatan = row.Kecamatan || "";
-        const desa = row.Desa || "";
-        const sumberVal = row.Sumber?.trim() || "";
-
-        if (!isNaN(lat) && !isNaN(lon) &&
-            levels.includes(conf) &&
-            tanggal.includes(tanggalOnly) &&
-            sumber.includes(sumberVal)) {
-
-          const color = conf === 'high' ? 'red' : 'yellow';
-
-          L.circleMarker([lat, lon], {
-            radius: 6,
-            fillColor: color,
-            color: '#000',
-            weight: 1,
-            opacity: 0.5,
-            fillOpacity: 0.5
-          }).addTo(hotspotLayer).bindPopup(`
-            <b>${waktu}</b><br>
-            ${lokasi}<br>
-            Kecamatan: ${kecamatan}<br>
-            Desa: ${desa}<br>
-            Confidence: ${conf}<br>
-            Sumber: ${sumberVal}<br>
-            Koordinat: ${lat.toFixed(4)}, ${lon.toFixed(4)}
-          `);
-        }
-      });
-    }
-
-    function fetchAndRenderData() {
-      fetch(url)
-        .then(res => res.json())
-        .then(data => {
-          rawData = data;
-          renderFilterTanggal();
-          renderFilterSumber(data);
-          applyFilters();
-          document.querySelectorAll('.filters input[type=checkbox]').forEach(cb => {
-            cb.addEventListener('change', applyFilters);
-          });
-        });
-    }
-
-    function loadGeoJSON() {
-      fetch(geojsonURL)
-        .then(res => res.json())
-        .then(geojson => {
-          if (geojsonLayer) map.removeLayer(geojsonLayer);
-          geojsonLayer = L.geoJSON(geojson, {
-            style: {
-              color: "#000",
-              weight: 1,
-              fillColor: "#ccc",
-              fillOpacity: 0.1
-            }
-          }).addTo(map);
-        });
-    }
-
-    function exportTable(format) {
-      const { levels, tanggal, sumber } = getSelectedFilters();
-      const filtered = rawData.filter(row => {
-        const conf = row.Confidence_Level?.toLowerCase();
-        const tgl = extractTanggal(row["Tanggal & Jam"] || "");
-        const sumberVal = row.Sumber?.trim() || "";
-        return levels.includes(conf) && tanggal.includes(tgl) && sumber.includes(sumberVal);
-      });
-
-      if (format === 'csv' || format === 'xlsx') {
-        const ws = XLSX.utils.json_to_sheet(filtered);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Hotspot");
-        XLSX.writeFile(wb, `hotspot.${format}`);
-      } else if (format === 'pdf') {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        const table = filtered.map(r => [
-          r["Tanggal & Jam"] || "", r.Provinsi, r["Kab/Kota"], r.Kecamatan, r.Desa,
-          r.Latitude, r.Longitude, r.Confidence_Level, r.Sumber
-        ]);
-        doc.autoTable({
-          head: [['Tanggal & Jam', 'Provinsi', 'Kab/Kota', 'Kecamatan', 'Desa', 'Lat', 'Lng', 'Confidence', 'Sumber']],
-          body: table,
-          styles: { fontSize: 8 }
-        });
-        doc.save("hotspot.pdf");
-      }
-    }
-
-    function init() {
-      fetchAndRenderData();
-      loadGeoJSON();
-      setInterval(fetchAndRenderData, 15 * 60 * 1000);
-    }
-
-    init();
   </script>
 </body>
 </html>
