@@ -72,7 +72,7 @@
     }
 
     .filters h4 {
-      margin: 0 0 6px 0;
+      margin: 10px 0 6px 0;
       font-size: 14px;
     }
 
@@ -119,8 +119,12 @@
       <h4>Confidence Level</h4>
       <label><input type="checkbox" class="confidence-filter" value="medium" checked> 🟡 Medium</label>
       <label><input type="checkbox" class="confidence-filter" value="high" checked> 🔴 High</label>
+
       <h4>Tanggal</h4>
       <div id="tanggal-filter">Memuat tanggal...</div>
+
+      <h4>Sumber</h4>
+      <div id="sumber-filter">Memuat sumber...</div>
     </div>
 
     <div id="map"></div>
@@ -166,6 +170,24 @@
       });
     }
 
+    function renderFilterSumber(data) {
+      const sumberSet = new Set();
+      data.forEach(row => {
+        if (row.Sumber) {
+          sumberSet.add(row.Sumber.trim());
+        }
+      });
+
+      const sumberFilterDiv = document.getElementById("sumber-filter");
+      sumberFilterDiv.innerHTML = "";
+
+      Array.from(sumberSet).sort().forEach(src => {
+        const safeSrc = src.replace(/"/g, '&quot;');
+        sumberFilterDiv.innerHTML += `
+          <label><input type="checkbox" class="sumber-filter" value="${safeSrc}" checked> ${safeSrc}</label>`;
+      });
+    }
+
     function getSelectedFilters() {
       const levels = Array.from(document.querySelectorAll('.confidence-filter'))
         .filter(cb => cb.checked)
@@ -175,11 +197,15 @@
         .filter(cb => cb.checked)
         .map(cb => cb.value);
 
-      return { levels, tanggal };
+      const sumber = Array.from(document.querySelectorAll('.sumber-filter'))
+        .filter(cb => cb.checked)
+        .map(cb => cb.value);
+
+      return { levels, tanggal, sumber };
     }
 
     function applyFilters() {
-      const { levels, tanggal } = getSelectedFilters();
+      const { levels, tanggal, sumber } = getSelectedFilters();
       hotspotLayer.clearLayers();
 
       rawData.forEach(row => {
@@ -190,9 +216,13 @@
         const tanggalOnly = extractTanggal(waktu);
         const lokasi = `${row.Provinsi} - ${row["Kab/Kota"]}`;
         const desa = row.Desa || "";
-        const sumber = row.Sumber || "";
+        const sumberVal = row.Sumber?.trim() || "";
 
-        if (!isNaN(lat) && !isNaN(lon) && levels.includes(conf) && tanggal.includes(tanggalOnly)) {
+        if (!isNaN(lat) && !isNaN(lon) &&
+            levels.includes(conf) &&
+            tanggal.includes(tanggalOnly) &&
+            sumber.includes(sumberVal)) {
+
           const color = conf === 'high' ? 'red' : 'yellow';
 
           L.circleMarker([lat, lon], {
@@ -203,14 +233,14 @@
             opacity: 0.5,
             fillOpacity: 0.5
           }).addTo(hotspotLayer)
-          .bindPopup(`
-            <b>${waktu}</b><br>
-            ${lokasi}<br>
-            Desa: ${desa}<br>
-            Confidence: ${conf}<br>
-            Sumber: ${sumber}<br>
-            Koordinat: ${lat.toFixed(4)}, ${lon.toFixed(4)}
-          `);
+            .bindPopup(`
+              <b>${waktu}</b><br>
+              ${lokasi}<br>
+              Desa: ${desa}<br>
+              Confidence: ${conf}<br>
+              Sumber: ${sumberVal}<br>
+              Koordinat: ${lat.toFixed(4)}, ${lon.toFixed(4)}
+            `);
         }
       });
     }
@@ -221,6 +251,7 @@
         .then(data => {
           rawData = data;
           renderFilterTanggal();
+          renderFilterSumber(rawData);
           applyFilters();
           document.querySelectorAll('.filters input[type=checkbox]').forEach(cb => {
             cb.addEventListener('change', applyFilters);
@@ -230,7 +261,7 @@
 
     function init() {
       fetchAndRenderData();
-      setInterval(fetchAndRenderData, 15 * 60 * 1000); // Refresh 15 menit
+      setInterval(fetchAndRenderData, 15 * 60 * 1000); // Refresh setiap 15 menit
     }
 
     init();
