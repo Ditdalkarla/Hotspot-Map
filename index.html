@@ -40,8 +40,9 @@
 
     .filters {
       position: absolute;
-      bottom: 10px;
+      top: 50%;
       left: 10px;
+      transform: translateY(-50%);
       background: rgba(255, 255, 255, 0.95);
       padding: 10px;
       border-radius: 6px;
@@ -172,7 +173,7 @@
     let geojsonLayer = null;
 
     const url = "https://opensheet.elk.sh/1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI/Data%20Hotspot%20Nasional";
-    const geojsonURL = "https://example.com/wilayah_administrasiprovinsi.geojson"; // Ganti URL sesuai file kamu
+    const geojsonURL = "https://example.com/wilayah_administrasiprovinsi.geojson"; // Ganti sesuai file kamu
     let rawData = [];
 
     function getLastThreeDates() {
