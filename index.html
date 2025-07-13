@@ -22,7 +22,6 @@
       color: white;
       height: 60px;
       flex-shrink: 0;
-      z-index: 1;
     }
 
     .logo { height: 36px; }
@@ -97,43 +96,35 @@
       font-size: 13px;
     }
 
-    .dropdown-content a:hover {
-      background-color: #f0f0f0;
-    }
-
     .dropdown:hover .dropdown-content {
       display: block;
     }
 
     @media (max-width: 600px) {
       .logo { height: 24px; }
-      .title { font-size: 10px; padding: 0 2px; }
+      .title { font-size: 10px; padding: 0 4px; }
       .header { height: 48px; }
       .main { height: calc(100% - 48px); }
-
       .filters {
+        top: auto;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 90%;
         font-size: 11px;
-        padding: 6px;
-        max-width: 85vw;
+        padding: 8px;
       }
-
       .filters h4 {
         font-size: 12px;
-        margin: 6px 0 4px 0;
+        margin-top: 6px;
+        margin-bottom: 4px;
       }
-
       .filters label {
-        margin-bottom: 3px;
-      }
-
-      .export-button {
-        font-size: 10px;
-        padding: 4px 8px;
-      }
-
-      .dropdown-content a {
         font-size: 11px;
-        padding: 6px 8px;
+      }
+      .export-button {
+        font-size: 11px;
+        padding: 5px 8px;
       }
     }
 
