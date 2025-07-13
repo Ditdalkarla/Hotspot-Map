@@ -197,7 +197,7 @@
       const list = getLastThreeDates();
       div.innerHTML = "";
       list.forEach(tgl => {
-        div.innerHTML += <label><input type="checkbox" class="tanggal-filter" value="${tgl}" checked> ${tgl}</label>;
+        div.innerHTML += `<label><input type="checkbox" class="tanggal-filter" value="${tgl}" checked> ${tgl}</label>`;
       });
     }
 
@@ -207,7 +207,7 @@
       const div = document.getElementById("sumber-filter");
       div.innerHTML = "";
       Array.from(sumberSet).sort().forEach(src => {
-        div.innerHTML += <label><input type="checkbox" class="sumber-filter" value="${src}" checked> ${src}</label>;
+        div.innerHTML += `<label><input type="checkbox" class="sumber-filter" value="${src}" checked> ${src}</label>`;
       });
     }
 
@@ -228,7 +228,7 @@
         const conf = row.Confidence_Level?.toLowerCase();
         const waktu = row["Tanggal & Jam"] || "";
         const tanggalOnly = extractTanggal(waktu);
-        const lokasi = ${row.Provinsi} - ${row["Kab/Kota"]};
+        const lokasi = `${row.Provinsi} - ${row["Kab/Kota"]}`;
         const kecamatan = row.Kecamatan || "";
         const desa = row.Desa || "";
         const sumberVal = row.Sumber?.trim() || "";
@@ -247,7 +247,7 @@
             weight: 1,
             opacity: 0.5,
             fillOpacity: 0.5
-          }).addTo(hotspotLayer).bindPopup(
+          }).addTo(hotspotLayer).bindPopup(`
             <b>${waktu}</b><br>
             ${lokasi}<br>
             Kecamatan: ${kecamatan}<br>
@@ -255,7 +255,7 @@
             Confidence: ${conf}<br>
             Sumber: ${sumberVal}<br>
             Koordinat: ${lat.toFixed(4)}, ${lon.toFixed(4)}
-          );
+          `);
         }
       });
     }
@@ -303,7 +303,7 @@
         const ws = XLSX.utils.json_to_sheet(filtered);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Hotspot");
-        XLSX.writeFile(wb, hotspot.${format});
+        XLSX.writeFile(wb, `hotspot.${format}`);
       } else if (format === 'pdf') {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
