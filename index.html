@@ -36,7 +36,6 @@
 
     .logo {
       height: 36px;
-      width: auto;
     }
 
     .title {
@@ -81,23 +80,53 @@
       margin-bottom: 4px;
     }
 
+    .export-button {
+      margin-top: 10px;
+      padding: 6px 12px;
+      background-color: #444;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    @media print {
+      body {
+        display: block;
+      }
+      #map, .filters, .header {
+        display: none !important;
+      }
+      .print-table {
+        display: block !important;
+      }
+    }
+
+    .print-table {
+      display: none;
+      padding: 16px;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 12px;
+    }
+
+    table, th, td {
+      border: 1px solid #ccc;
+    }
+
+    th, td {
+      padding: 6px;
+      text-align: left;
+    }
+
     @media (max-width: 600px) {
-      .logo {
-        height: 28px;
-      }
-
-      .title {
-        font-size: 11px;
-        padding: 0 4px;
-      }
-
-      .header {
-        height: 50px;
-      }
-
-      .main {
-        height: calc(100% - 50px);
-      }
+      .logo { height: 28px; }
+      .title { font-size: 11px; padding: 0 4px; }
+      .header { height: 50px; }
+      .main { height: calc(100% - 50px); }
     }
   </style>
 </head>
@@ -125,23 +154,31 @@
 
       <h4>Sumber</h4>
       <div id="sumber-filter">Memuat sumber...</div>
+
+      <button class="export-button" onclick="printData()">🖨️ Cetak PDF</button>
     </div>
 
     <div id="map"></div>
+    <div class="print-table" id="printTableContainer"></div>
   </div>
 
-  <!-- Leaflet Script -->
+  <!-- Script -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     const map = L.map('map', { attributionControl: false }).setView([-2.5, 117], 5);
 
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 18
     }).addTo(map);
 
-    let hotspotLayer = L.layerGroup().addTo(map);
+    const hotspotLayer = L.layerGroup().addTo(map);
+    let geojsonLayer = null;
+
     const url = "https://opensheet.elk.sh/1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI/Data%20Hotspot%20Nasional";
+    const geojsonURL = "https://example.com/wilayah_administrasiprovinsi.geojson"; // Ganti dengan link sebenarnya
+
     let rawData = [];
+    let filteredData = [];
 
     function getLastThreeDates() {
       const options = { day: '2-digit', month: 'long', year: 'numeric' };
@@ -173,40 +210,28 @@
     function renderFilterSumber(data) {
       const sumberSet = new Set();
       data.forEach(row => {
-        if (row.Sumber) {
-          sumberSet.add(row.Sumber.trim());
-        }
+        if (row.Sumber) sumberSet.add(row.Sumber.trim());
       });
 
       const sumberFilterDiv = document.getElementById("sumber-filter");
       sumberFilterDiv.innerHTML = "";
-
       Array.from(sumberSet).sort().forEach(src => {
-        const safeSrc = src.replace(/"/g, '&quot;');
         sumberFilterDiv.innerHTML += `
-          <label><input type="checkbox" class="sumber-filter" value="${safeSrc}" checked> ${safeSrc}</label>`;
+          <label><input type="checkbox" class="sumber-filter" value="${src}" checked> ${src}</label>`;
       });
     }
 
     function getSelectedFilters() {
-      const levels = Array.from(document.querySelectorAll('.confidence-filter'))
-        .filter(cb => cb.checked)
-        .map(cb => cb.value);
-
-      const tanggal = Array.from(document.querySelectorAll('.tanggal-filter'))
-        .filter(cb => cb.checked)
-        .map(cb => cb.value);
-
-      const sumber = Array.from(document.querySelectorAll('.sumber-filter'))
-        .filter(cb => cb.checked)
-        .map(cb => cb.value);
-
+      const levels = Array.from(document.querySelectorAll('.confidence-filter:checked')).map(cb => cb.value);
+      const tanggal = Array.from(document.querySelectorAll('.tanggal-filter:checked')).map(cb => cb.value);
+      const sumber = Array.from(document.querySelectorAll('.sumber-filter:checked')).map(cb => cb.value);
       return { levels, tanggal, sumber };
     }
 
     function applyFilters() {
       const { levels, tanggal, sumber } = getSelectedFilters();
       hotspotLayer.clearLayers();
+      filteredData = [];
 
       rawData.forEach(row => {
         const lat = parseFloat(row.Latitude);
@@ -215,14 +240,16 @@
         const waktu = row["Tanggal & Jam"] || "";
         const tanggalOnly = extractTanggal(waktu);
         const lokasi = `${row.Provinsi} - ${row["Kab/Kota"]}`;
-        const desa = row.Desa || "";
         const kecamatan = row.Kecamatan || "";
+        const desa = row.Desa || "";
         const sumberVal = row.Sumber?.trim() || "";
 
         if (!isNaN(lat) && !isNaN(lon) &&
             levels.includes(conf) &&
             tanggal.includes(tanggalOnly) &&
             sumber.includes(sumberVal)) {
+
+          filteredData.push({ waktu, lokasi, kecamatan, desa, conf, sumberVal, lat, lon });
 
           const color = conf === 'high' ? 'red' : 'yellow';
 
@@ -233,18 +260,54 @@
             weight: 1,
             opacity: 0.5,
             fillOpacity: 0.5
-          }).addTo(hotspotLayer)
-            .bindPopup(`
-              <b>${waktu}</b><br>
-              ${lokasi}<br>
-              Kecamatan: ${kecamatan}<br>
-              Desa: ${desa}<br>
-              Confidence: ${conf}<br>
-              Sumber: ${sumberVal}<br>
-              Koordinat: ${lat.toFixed(4)}, ${lon.toFixed(4)}
-            `);
+          }).addTo(hotspotLayer).bindPopup(`
+            <b>${waktu}</b><br>
+            ${lokasi}<br>
+            Kecamatan: ${kecamatan}<br>
+            Desa: ${desa}<br>
+            Confidence: ${conf}<br>
+            Sumber: ${sumberVal}<br>
+            Koordinat: ${lat.toFixed(4)}, ${lon.toFixed(4)}
+          `);
         }
       });
+    }
+
+    function printData() {
+      const container = document.getElementById("printTableContainer");
+      container.innerHTML = `
+        <h3>Daftar Hotspot Terfilter</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>Waktu</th>
+              <th>Lokasi</th>
+              <th>Kecamatan</th>
+              <th>Desa</th>
+              <th>Confidence</th>
+              <th>Sumber</th>
+              <th>Latitude</th>
+              <th>Longitude</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filteredData.map((d, i) => `
+              <tr>
+                <td>${i + 1}</td>
+                <td>${d.waktu}</td>
+                <td>${d.lokasi}</td>
+                <td>${d.kecamatan}</td>
+                <td>${d.desa}</td>
+                <td>${d.conf}</td>
+                <td>${d.sumberVal}</td>
+                <td>${d.lat}</td>
+                <td>${d.lon}</td>
+              </tr>`).join("")}
+          </tbody>
+        </table>
+      `;
+      window.print();
     }
 
     function fetchAndRenderData() {
@@ -261,9 +324,26 @@
         });
     }
 
+    function loadGeoJSON() {
+      fetch(geojsonURL)
+        .then(res => res.json())
+        .then(geojson => {
+          if (geojsonLayer) map.removeLayer(geojsonLayer);
+          geojsonLayer = L.geoJSON(geojson, {
+            style: {
+              color: "#000",
+              weight: 1,
+              fillColor: "#ccc",
+              fillOpacity: 0.1
+            }
+          }).addTo(map);
+        });
+    }
+
     function init() {
       fetchAndRenderData();
-      setInterval(fetchAndRenderData, 15 * 60 * 1000); // Refresh setiap 15 menit
+      loadGeoJSON();
+      setInterval(fetchAndRenderData, 15 * 60 * 1000);
     }
 
     init();
