@@ -63,7 +63,6 @@
     }
 
     .export-button {
-      margin: 4px 4px 0 0;
       padding: 6px 10px;
       background-color: #444;
       color: white;
@@ -71,11 +70,12 @@
       border-radius: 4px;
       font-size: 12px;
       cursor: pointer;
+      width: 100%;
     }
 
     .dropdown {
       position: relative;
-      display: inline-block;
+      width: 100%;
     }
 
     .dropdown-content {
@@ -110,6 +110,9 @@
       .title { font-size: 11px; padding: 0 4px; }
       .header { height: 50px; }
       .main { height: calc(100% - 50px); }
+      .filters { font-size: 11px; padding: 8px; }
+      .filters h4 { font-size: 12px; margin: 6px 0; }
+      .export-button { font-size: 11px; padding: 5px; }
     }
 
     @media print {
@@ -147,17 +150,18 @@
       <div id="sumber-filter">Memuat sumber...</div>
 
       <h4>Download Tabel Data</h4>
-      <div class="dropdown">
-        <button class="export-button">⬇️ Pilih Format</button>
-        <div class="dropdown-content">
-          <a href="#" onclick="exportTable('csv')">📄 CSV</a>
-          <a href="#" onclick="exportTable('xlsx')">📄 XLSX</a>
-          <a href="#" onclick="exportTable('pdf')">📄 PDF</a>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <div class="dropdown">
+          <button class="export-button">⬇️ Pilih Format</button>
+          <div class="dropdown-content">
+            <a href="#" onclick="exportTable('csv')">📄 CSV</a>
+            <a href="#" onclick="exportTable('xlsx')">📄 XLSX</a>
+            <a href="#" onclick="exportTable('pdf')">📄 PDF</a>
+          </div>
         </div>
-      </div>
 
-      <!-- DIPINDAH KE SINI -->
-      <button class="export-button" onclick="window.print()">🖨️ Cetak Peta</button>
+        <button class="export-button" onclick="window.print()">🖨️ Cetak Peta</button>
+      </div>
     </div>
 
     <div id="map"></div>
@@ -174,7 +178,7 @@
     let geojsonLayer = null;
 
     const url = "https://opensheet.elk.sh/1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI/Data%20Hotspot%20Nasional";
-    const geojsonURL = "https://example.com/wilayah_administrasiprovinsi.geojson";
+    const geojsonURL = "https://example.com/wilayah_administrasiprovinsi.geojson"; // Ganti URL sesuai kebutuhan
     let rawData = [];
 
     function getLastThreeDates() {
@@ -204,7 +208,9 @@
 
     function renderFilterSumber(data) {
       const sumberSet = new Set();
-      data.forEach(row => { if (row.Sumber) sumberSet.add(row.Sumber.trim()); });
+      data.forEach(row => {
+        if (row.Sumber) sumberSet.add(row.Sumber.trim());
+      });
       const div = document.getElementById("sumber-filter");
       div.innerHTML = "";
       Array.from(sumberSet).sort().forEach(src => {
