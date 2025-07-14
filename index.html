@@ -195,9 +195,8 @@
       maxZoom: 18
     }).addTo(map);
 
-    const hotspotLayer = L.layerGroup().addTo(map);
+    let hotspotLayer = null;
     let geojsonLayer = null;
-
     const url = "https://opensheet.elk.sh/1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI/Data%20Hotspot%20Nasional";
     let rawData = [];
 
@@ -284,6 +283,7 @@
     }
 
     function fetchAndRenderData() {
+      hotspotLayer = L.layerGroup().addTo(map); // Tambahkan setelah geojson
       fetch(url)
         .then(res => res.json())
         .then(data => {
@@ -339,9 +339,6 @@
     }
 
     function init() {
-      fetchAndRenderData();
-
-      // ✅ Ganti link dengan versi RAW GeoJSON
       const geojsonUrl = 'https://raw.githubusercontent.com/Ditdalkarla/Hotspot-Map/main/provinsi.geojson';
       fetch(geojsonUrl)
         .then(res => res.json())
@@ -353,8 +350,12 @@
               fillOpacity: 0.05
             }
           }).addTo(map);
-        }).catch(err => {
+          // Setelah geojson dimuat, baru tampilkan hotspot
+          fetchAndRenderData();
+        })
+        .catch(err => {
           console.error("Gagal memuat GeoJSON:", err);
+          fetchAndRenderData(); // Tetap tampilkan hotspot meski geojson gagal
         });
     }
 
