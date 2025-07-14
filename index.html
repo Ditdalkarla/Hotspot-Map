@@ -341,7 +341,8 @@
     function init() {
       fetchAndRenderData();
 
-      const geojsonUrl = 'https://github.com/Ditdalkarla/Hotspot-Map/blob/main/provinsi.geojson'; // Ganti dengan link langsung ke file geojson
+      // ✅ Ganti link dengan versi RAW GeoJSON
+      const geojsonUrl = 'https://raw.githubusercontent.com/Ditdalkarla/Hotspot-Map/main/provinsi.geojson';
       fetch(geojsonUrl)
         .then(res => res.json())
         .then(data => {
@@ -352,6 +353,8 @@
               fillOpacity: 0.05
             }
           }).addTo(map);
+        }).catch(err => {
+          console.error("Gagal memuat GeoJSON:", err);
         });
     }
 
