@@ -44,25 +44,20 @@
   <div id="map"></div>
 
   <script>
-    // Base layers
     const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 18,
-      attribution: '&copy; OpenStreetMap'
+      attribution: '&copy; OpenStreetMap contributors'
     });
 
     const esri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 19,
-      attribution: 'Tiles © Esri'
+      attribution: 'Tiles &copy; Esri'
     });
 
-    // Map init
     const map = L.map('map', {
       center: [-1.5, 117],
       zoom: 5,
-      layers: [osm] // default layer
+      layers: [esri] // default satelit
     });
 
-    // Layer control
     const baseLayers = {
       "🗺️ OpenStreetMap": osm,
       "🛰️ ESRI Satelit": esri
@@ -70,34 +65,29 @@
     L.control.layers(baseLayers).addTo(map);
 
     let hotspotLayer = L.layerGroup().addTo(map);
-    let geojsonLayer;
-    let previousData = [];
+    let previousKeys = [];
 
-    function fetchAndRenderData() {
+    function fetchHotspotData() {
       fetch('https://script.google.com/macros/s/AKfycbxVNwMkm61H_e1k-aRgHKvRHtUZLWe1iCImSFWqFke0ZQYYdXq1vhAfXh5P_9y-rmVh/exec')
-        .then(res => res.json())
+        .then(response => response.json())
         .then(data => {
-          const newHotspots = [];
           const newMarkers = [];
+          hotspotLayer.clearLayers();
 
           data.forEach(item => {
-            const key = item.latitude + ',' + item.longitude + ',' + item.date_hotspot;
-            if (!previousData.includes(key)) {
-              newHotspots.push(item);
-              previousData.push(key); // update list
-            }
+            const key = `${item.latitude},${item.longitude},${item.date_hotspot}`;
+            const isNew = !previousKeys.includes(key);
+            if (isNew) previousKeys.push(key);
 
-            const iconColor = item.confidence_level === "high" ? "red" : "yellow";
-            const icon = L.circleMarker([item.latitude, item.longitude], {
+            const color = item.confidence_level === 'high' ? 'red' : 'yellow';
+            const marker = L.circleMarker([item.latitude, item.longitude], {
               radius: 6,
-              fillColor: iconColor,
+              fillColor: color,
               color: "#000",
               weight: 1,
               opacity: 0.5,
               fillOpacity: 0.5
-            });
-
-            icon.bindPopup(`
+            }).bindPopup(`
               <b>Provinsi:</b> ${item.nama_provinsi}<br/>
               <b>Kab/Kota:</b> ${item.kabkota}<br/>
               <b>Kecamatan:</b> ${item.kecamatan}<br/>
@@ -107,78 +97,69 @@
               <b>Sumber:</b> ${item.sumber}
             `);
 
-            icon.addTo(hotspotLayer);
+            marker.addTo(hotspotLayer);
 
-            if (newHotspots.includes(item)) {
-              newMarkers.push({ marker: icon, item });
+            if (isNew) {
+              newMarkers.push({ marker, item });
             }
           });
 
           if (newMarkers.length > 0) {
-            showAlertPopup(newMarkers);
-            playNotificationSound();
+            showPopupAlert(newMarkers);
+            playSound();
           }
+        })
+        .catch(err => {
+          console.error("Gagal ambil data hotspot:", err);
         });
     }
 
-    function showAlertPopup(newMarkers) {
-      const container = document.createElement('div');
-      container.className = 'popup-alert';
-      container.innerHTML = `
+    function showPopupAlert(newMarkers) {
+      const box = document.createElement('div');
+      box.className = 'popup-alert';
+      box.innerHTML = `
         <h4>🔥 Hotspot Baru Terdeteksi!</h4>
-        <ul>${newMarkers.map((m, i) => `<li data-idx="${i}">${m.item.desa}, ${m.item.kabkota}</li>`).join('')}</ul>
+        <ul>${newMarkers.map((d, i) => `<li data-idx="${i}">${d.item.desa}, ${d.item.kabkota}</li>`).join('')}</ul>
       `;
-      document.body.appendChild(container);
+      document.body.appendChild(box);
 
-      // Klik lompat ke marker
-      container.querySelectorAll('li').forEach(li => {
+      box.querySelectorAll('li').forEach(li => {
         li.addEventListener('click', () => {
-          const idx = li.getAttribute('data-idx');
-          const marker = newMarkers[idx].marker;
-          map.setView(marker.getLatLng(), 12);
-          marker.openPopup();
+          const idx = parseInt(li.getAttribute('data-idx'));
+          const m = newMarkers[idx].marker;
+          map.setView(m.getLatLng(), 12);
+          m.openPopup();
         });
       });
 
-      setTimeout(() => {
-        container.remove();
-      }, 60000); // hilang setelah 60 detik
+      setTimeout(() => box.remove(), 60000);
     }
 
-    function playNotificationSound() {
+    function playSound() {
       const audio = new Audio("https://www.soundjay.com/buttons/sounds/button-3.mp3");
       audio.play();
     }
 
-    function init() {
-      const geojsonUrl = 'https://raw.githubusercontent.com/Ditdalkarla/Hotspot-Map/main/provinsi.geojson';
-      fetch(geojsonUrl)
+    function loadGeoJSON() {
+      const url = "https://raw.githubusercontent.com/Ditdalkarla/Hotspot-Map/main/provinsi.geojson";
+      fetch(url)
         .then(res => res.json())
         .then(data => {
-          geojsonLayer = L.geoJSON(data, {
+          L.geoJSON(data, {
             style: {
               color: '#3388ff',
               weight: 1,
               fillOpacity: 0.05
             }
           }).addTo(map);
-          fetchAndRenderData();
-
-          // 🔁 Auto-refresh tiap 15 menit
-          setInterval(() => {
-            hotspotLayer.clearLayers();
-            fetchAndRenderData();
-          }, 15 * 60 * 1000);
         })
-        .catch(err => {
-          console.error("Gagal memuat GeoJSON:", err);
-          fetchAndRenderData();
+        .catch(err => console.error("GeoJSON gagal dimuat:", err));
+    }
 
-          setInterval(() => {
-            hotspotLayer.clearLayers();
-            fetchAndRenderData();
-          }, 15 * 60 * 1000);
-        });
+    function init() {
+      loadGeoJSON();
+      fetchHotspotData();
+      setInterval(fetchHotspotData, 15 * 60 * 1000); // setiap 15 menit
     }
 
     init();
