@@ -6,7 +6,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <style>
-    #map { height: 100vh; width: 100vw; }
+    html, body { margin: 0; padding: 0; height: 100%; }
+    #map { height: 100%; width: 100%; display: none; }
+    #loginOverlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center;
+      flex-direction: column; z-index: 9999; color: white;
+    }
+    #loginOverlay input {
+      padding: 10px; font-size: 16px; border: none; border-radius: 5px;
+      margin-top: 10px;
+    }
     #notif {
       position: fixed;
       top: 20px;
@@ -23,23 +33,42 @@
   </style>
 </head>
 <body>
-  <div id="map"></div>
-  <div id="notif">🔥 Hotspot baru terdeteksi!</div>
-  <audio id="notifSound" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" preload="auto"></audio>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>
+<div id="loginOverlay">
+  <h2>Masukkan Password</h2>
+  <input type="password" id="passwordInput" placeholder="Password...">
+</div>
+
+<div id="notif">🔥 Hotspot baru terdeteksi!</div>
+<audio id="notifSound" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" preload="auto"></audio>
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  // LOGIN
+  const passwordInput = document.getElementById('passwordInput');
+  passwordInput.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+      if (passwordInput.value === 'karla') {
+        document.getElementById('loginOverlay').style.display = 'none';
+        document.getElementById('map').style.display = 'block';
+        startMap();
+      } else {
+        alert('Password salah!');
+      }
+    }
+  });
+
+  // PETA
+  function startMap() {
     const map = L.map('map').setView([-1.5, 117], 5);
 
-    // Base layers
     const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 18,
-      attribution: '&copy; OpenStreetMap'
+      maxZoom: 18, attribution: '&copy; OpenStreetMap'
     }).addTo(map);
 
     const esri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 19,
-      attribution: 'Tiles © Esri'
+      maxZoom: 19, attribution: 'Tiles © Esri'
     });
 
     const baseLayers = {
@@ -54,11 +83,7 @@
       .then(res => res.json())
       .then(data => {
         L.geoJSON(data, {
-          style: {
-            color: "#888",
-            weight: 1,
-            fillOpacity: 0
-          }
+          style: { color: "#888", weight: 1, fillOpacity: 0 }
         }).addTo(map);
       });
 
@@ -83,9 +108,7 @@
             const color = row['Confidence_Level'] === 'high' ? 'red' : 'yellow';
 
             const marker = L.circleMarker([+row['Latitude'], +row['Longitude']], {
-              radius: 6,
-              color,
-              fillOpacity: 0.5
+              radius: 6, color, fillOpacity: 0.5
             }).bindPopup(`
               <b>Provinsi:</b> ${row['Provinsi']}<br>
               <b>Kab/Kota:</b> ${row['Kab/Kota']}<br>
@@ -96,16 +119,12 @@
               <b>Waktu:</b> ${row['Tanggal']} ${row['Jam']}
             `);
 
-            marker.on('click', () => {
-              marker.openPopup();
-            });
+            marker.on('click', () => marker.openPopup());
 
             hotspotLayer.addLayer(marker);
           });
 
-          if (newHotspots.length > 0) {
-            showNotif(newHotspots.length);
-          }
+          if (newHotspots.length > 0) showNotif(newHotspots.length);
         });
     }
 
@@ -113,16 +132,14 @@
       const notif = document.getElementById('notif');
       notif.innerText = `🔥 ${jumlah} hotspot baru terdeteksi! Klik titik untuk info.`;
       notif.style.display = 'block';
-
       document.getElementById('notifSound').play();
-
-      setTimeout(() => {
-        notif.style.display = 'none';
-      }, 60000); // 1 menit
+      setTimeout(() => { notif.style.display = 'none'; }, 60000);
     }
 
     fetchHotspots();
     setInterval(fetchHotspots, 15 * 60 * 1000); // setiap 15 menit
-  </script>
+  }
+</script>
+
 </body>
 </html>
