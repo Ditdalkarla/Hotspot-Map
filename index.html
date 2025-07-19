@@ -358,10 +358,9 @@
       }
     }
 
-  function init() {
-  fetchAndRenderData();
-  setInterval(fetchAndRenderData, 300000); // Auto refresh tiap 5 menit
-}
+    function init() {
+      fetchAndRenderData();
+    }
 
     window.onload = () => {
       const loggedIn = localStorage.getItem("hotspot_logged_in");
