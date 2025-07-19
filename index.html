@@ -12,101 +12,55 @@
       margin: 0;
       padding: 0;
     }
-    .legend {
-      background: white;
-      padding: 10px;
-      line-height: 18px;
-      color: #333;
-    }
-    .legend i {
-      width: 18px;
-      height: 18px;
-      float: left;
-      margin-right: 8px;
-      opacity: 0.7;
-    }
-    .leaflet-bottom.leaflet-right {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-    }
   </style>
 </head>
 <body>
   <div id="map"></div>
-
   <script>
-    const map = L.map("map").setView([-2, 117], 5);
+    const map = L.map("map").setView([-2.5, 117], 5);
 
-    // Base map ESRI Imagery
+    // Base layer ESRI Imagery
     const esriImagery = L.tileLayer(
       "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
       {
-        attribution:
-          "Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community",
+        attribution: "Tiles © Esri"
       }
     ).addTo(map);
 
-    let hotspotLayer;
-    let provinsiLayer;
-
-    // Provinsi GeoJSON
+    // Layer Provinsi (geojson)
     fetch("provinsi.geojson")
-      .then((res) => res.json())
-      .then((data) => {
-        provinsiLayer = L.geoJSON(data, {
+      .then(res => res.json())
+      .then(data => {
+        L.geoJSON(data, {
           style: {
-            color: "#000000",
+            color: "#000000",       // garis hitam
             weight: 1,
-            fillOpacity: 0,
-          },
+            fillOpacity: 0          // isi kosong
+          }
         }).addTo(map);
       });
 
-    // Hotspot dari Google Apps Script Web App
-    fetch(
-      "https://script.google.com/macros/s/AKfycbzUKP4gk3zAXmBsl3PaWfKoKxvVowqvzkVHmi3KuKHP0fGl6dnlVBIMX5R2rHbwCR4QWg/exec"
-    )
-      .then((res) => res.json())
-      .then((data) => {
-        hotspotLayer = L.geoJSON(data, {
+    // Layer Hotspot (contoh fetch)
+    fetch("hotspot.geojson")
+      .then(res => res.json())
+      .then(data => {
+        L.geoJSON(data, {
           pointToLayer: function (feature, latlng) {
-            let color =
-              feature.properties.confidence_level === "high" ? "red" : "yellow";
+            let color = feature.properties.confidence_level === "high" ? "red" : "yellow";
             return L.circleMarker(latlng, {
               radius: 6,
               fillColor: color,
-              color: "#000",
+              color: color,
               weight: 1,
-              opacity: 1,
-              fillOpacity: 0.5,
+              opacity: 0.5,
+              fillOpacity: 0.5
             });
           },
           onEachFeature: function (feature, layer) {
-            let props = feature.properties;
-            let popupContent = `
-              <strong>Provinsi:</strong> ${props.nama_provinsi}<br>
-              <strong>Kab/Kota:</strong> ${props.kabkota}<br>
-              <strong>Kecamatan:</strong> ${props.kecamatan}<br>
-              <strong>Desa:</strong> ${props.desa}<br>
-              <strong>Confidence:</strong> ${props.confidence_level}<br>
-              <strong>Sumber:</strong> ${props.sumber}<br>
-              <strong>Waktu:</strong> ${props.date_hotspot}
-            `;
-            layer.bindPopup(popupContent);
-          },
+            layer.bindPopup(JSON.stringify(feature.properties, null, 2));
+          }
         }).addTo(map);
       });
-
-    // Legend
-    const legend = L.control({ position: "bottomright" });
-    legend.onAdd = function (map) {
-      const div = L.DomUtil.create("div", "legend");
-      div.innerHTML += "<i style='background: red'></i> High Confidence<br>";
-      div.innerHTML += "<i style='background: yellow'></i> Medium Confidence<br>";
-      return div;
-    };
-    legend.addTo(map);
   </script>
 </body>
 </html>
