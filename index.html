@@ -3,32 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <title>Peta Hotspot</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
-    html, body { margin: 0; padding: 0; height: 100%; }
-    #map { height: 100%; width: 100%; display: none; }
+    html, body, #map { height: 100%; margin: 0; padding: 0; }
     #loginOverlay {
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center;
-      flex-direction: column; z-index: 9999; color: white;
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.8);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      flex-direction: column;
     }
     #loginOverlay input {
-      padding: 10px; font-size: 16px; border: none; border-radius: 5px;
-      margin-top: 10px;
-    }
-    #notif {
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(255, 0, 0, 0.9);
-      color: white;
-      padding: 10px 20px;
-      border-radius: 10px;
-      display: none;
-      z-index: 999;
-      font-weight: bold;
+      padding: 10px; margin-top: 10px;
     }
   </style>
 </head>
@@ -36,109 +27,114 @@
 
 <div id="loginOverlay">
   <h2>Masukkan Password</h2>
-  <input type="password" id="passwordInput" placeholder="Password...">
+  <input type="password" id="passwordInput" placeholder="Password..." />
 </div>
 
-<div id="notif">🔥 Hotspot baru terdeteksi!</div>
-<audio id="notifSound" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" preload="auto"></audio>
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <script>
-  // LOGIN
-  const passwordInput = document.getElementById('passwordInput');
-  passwordInput.addEventListener('keypress', function(e) {
+  let map;
+
+  const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18,
+    attribution: '&copy; OpenStreetMap'
+  });
+
+  const esri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19,
+    attribution: 'Tiles © Esri'
+  });
+
+  function startMap() {
+    map = L.map('map', {
+      center: [-1.5, 117],
+      zoom: 5,
+      layers: [osm]
+    });
+
+    const baseLayers = {
+      "OpenStreetMap": osm,
+      "ESRI Satelit": esri
+    };
+    L.control.layers(baseLayers).addTo(map);
+
+    // Tambahkan GeoJSON provinsi
+    fetch('provinsi.geojson')
+      .then(res => res.json())
+      .then(data => {
+        L.geoJSON(data, {
+          style: { color: '#555', weight: 1, fillOpacity: 0 }
+        }).addTo(map);
+      });
+
+    fetchHotspots();
+    setInterval(fetchHotspots, 15 * 60 * 1000); // setiap 15 menit
+  }
+
+  function fetchHotspots() {
+    const url = 'https://opensheet.elk.sh/1aV7-rDKs93FuJpvLyZazsQaQVkXFF0n4NH4GvIfvp1g/Data%20Hotspot%20Nasional';
+    fetch(url)
+      .then(res => res.json())
+      .then(data => {
+        // Hapus layer lama kalau ada
+        if (window.hotspotLayer) {
+          map.removeLayer(window.hotspotLayer);
+        }
+
+        const features = [];
+        data.forEach(row => {
+          if (!row['Latitude'] || !row['Longitude']) return;
+
+          const lat = parseFloat(row['Latitude']);
+          const lon = parseFloat(row['Longitude']);
+          const confidence = row['Confidence_Level'] || '';
+          const color = confidence.toLowerCase() === 'high' ? 'red' :
+                        confidence.toLowerCase() === 'medium' ? 'orange' : 'gray';
+
+          const circle = L.circleMarker([lat, lon], {
+            radius: 6,
+            fillColor: color,
+            color: color,
+            weight: 1,
+            opacity: 0.5,
+            fillOpacity: 0.5
+          });
+
+          const popup = `
+            <b>Provinsi:</b> ${row['Provinsi'] || ''}<br/>
+            <b>Kab/Kota:</b> ${row['Kab/Kota'] || ''}<br/>
+            <b>Kecamatan:</b> ${row['Kecamatan'] || ''}<br/>
+            <b>Desa:</b> ${row['Desa'] || ''}<br/>
+            <b>Tanggal:</b> ${row['Tanggal'] || ''}<br/>
+            <b>Jam:</b> ${row['Jam'] || ''}<br/>
+            <b>Confidence:</b> ${row['Confidence_Level'] || ''}<br/>
+            <b>Sumber:</b> ${row['Sumber'] || ''}
+          `;
+
+          circle.bindPopup(popup);
+          features.push(circle);
+        });
+
+        window.hotspotLayer = L.layerGroup(features).addTo(map);
+      })
+      .catch(err => {
+        console.error("Gagal fetch hotspot:", err);
+      });
+  }
+
+  document.getElementById('passwordInput').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') {
-      if (passwordInput.value === 'karla') {
+      const input = e.target.value;
+      if (input === 'karla') {
         document.getElementById('loginOverlay').style.display = 'none';
-        document.getElementById('map').style.display = 'block';
         startMap();
       } else {
         alert('Password salah!');
       }
     }
   });
-
-  // PETA
-  function startMap() {
-    const map = L.map('map').setView([-1.5, 117], 5);
-
-    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 18, attribution: '&copy; OpenStreetMap'
-    }).addTo(map);
-
-    const esri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 19, attribution: 'Tiles © Esri'
-    });
-
-    const baseLayers = {
-      "🗺️ OpenStreetMap": osm,
-      "🛰️ ESRI Satelit": esri
-    };
-
-    L.control.layers(baseLayers).addTo(map);
-
-    // Layer provinsi.geojson
-    fetch('provinsi.geojson')
-      .then(res => res.json())
-      .then(data => {
-        L.geoJSON(data, {
-          style: { color: "#888", weight: 1, fillOpacity: 0 }
-        }).addTo(map);
-      });
-
-    let lastHotspotIds = new Set();
-    const hotspotLayer = L.layerGroup().addTo(map);
-
-    function fetchHotspots() {
-      fetch('https://opensheet.elk.sh/1rEIsTZPIkaULzgyh3yI0fUslKAKzPo5Qp34GWEz6A4I/Data%20Hotspot%20Nasional')
-        .then(response => response.json())
-        .then(data => {
-          hotspotLayer.clearLayers();
-          let newHotspots = [];
-
-          data.forEach(row => {
-            const id = row['No'];
-            if (!id || !row['Latitude'] || !row['Longitude']) return;
-
-            const isNew = !lastHotspotIds.has(id);
-            if (isNew) newHotspots.push(row);
-            lastHotspotIds.add(id);
-
-            const color = row['Confidence_Level'] === 'high' ? 'red' : 'yellow';
-
-            const marker = L.circleMarker([+row['Latitude'], +row['Longitude']], {
-              radius: 6, color, fillOpacity: 0.5
-            }).bindPopup(`
-              <b>Provinsi:</b> ${row['Provinsi']}<br>
-              <b>Kab/Kota:</b> ${row['Kab/Kota']}<br>
-              <b>Kecamatan:</b> ${row['Kecamatan']}<br>
-              <b>Desa:</b> ${row['Desa']}<br>
-              <b>Confidence:</b> ${row['Confidence_Level']}<br>
-              <b>Sumber:</b> ${row['Sumber']}<br>
-              <b>Waktu:</b> ${row['Tanggal']} ${row['Jam']}
-            `);
-
-            marker.on('click', () => marker.openPopup());
-
-            hotspotLayer.addLayer(marker);
-          });
-
-          if (newHotspots.length > 0) showNotif(newHotspots.length);
-        });
-    }
-
-    function showNotif(jumlah) {
-      const notif = document.getElementById('notif');
-      notif.innerText = `🔥 ${jumlah} hotspot baru terdeteksi! Klik titik untuk info.`;
-      notif.style.display = 'block';
-      document.getElementById('notifSound').play();
-      setTimeout(() => { notif.style.display = 'none'; }, 60000);
-    }
-
-    fetchHotspots();
-    setInterval(fetchHotspots, 15 * 60 * 1000); // setiap 15 menit
-  }
 </script>
 
 </body>
