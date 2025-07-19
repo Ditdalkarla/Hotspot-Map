@@ -50,8 +50,15 @@
       max-width: 90vw;
     }
 
-    .filters h4 { margin: 10px 0 6px; font-size: 14px; }
-    .filters label { display: block; margin-bottom: 4px; }
+    .filters h4 {
+      margin: 10px 0 6px;
+      font-size: 14px;
+    }
+
+    .filters label {
+      display: block;
+      margin-bottom: 4px;
+    }
 
     .export-button {
       padding: 6px 10px;
@@ -106,6 +113,7 @@
       }
     }
 
+    /* Login Overlay */
     #login-overlay {
       position: fixed;
       top: 0; left: 0; width: 100%; height: 100%;
@@ -195,7 +203,7 @@
       maxZoom: 18
     }).addTo(map);
 
-    let hotspotLayer = null;
+    const hotspotLayer = L.layerGroup().addTo(map);
     let geojsonLayer = null;
     const url = "https://opensheet.elk.sh/1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI/Data%20Hotspot%20Nasional";
     let rawData = [];
@@ -221,7 +229,7 @@
       const list = getLastThreeDates();
       div.innerHTML = "";
       list.forEach(tgl => {
-        div.innerHTML += <label><input type="checkbox" class="tanggal-filter" value="${tgl}" checked> ${tgl}</label>;
+        div.innerHTML += `<label><input type="checkbox" class="tanggal-filter" value="${tgl}" checked> ${tgl}</label>`;
       });
     }
 
@@ -233,7 +241,7 @@
       const div = document.getElementById("sumber-filter");
       div.innerHTML = "";
       Array.from(sumberSet).sort().forEach(src => {
-        div.innerHTML += <label><input type="checkbox" class="sumber-filter" value="${src}" checked> ${src}</label>;
+        div.innerHTML += `<label><input type="checkbox" class="sumber-filter" value="${src}" checked> ${src}</label>`;
       });
     }
 
@@ -253,7 +261,7 @@
         const conf = row.Confidence_Level?.toLowerCase();
         const waktu = row["Tanggal & Jam"] || "";
         const tanggalOnly = extractTanggal(waktu);
-        const lokasi = ${row.Provinsi} - ${row["Kab/Kota"]};
+        const lokasi = `${row.Provinsi} - ${row["Kab/Kota"]}`;
         const kecamatan = row.Kecamatan || "";
         const desa = row.Desa || "";
         const sumberVal = row.Sumber?.trim() || "";
@@ -269,7 +277,7 @@
             weight: 1,
             opacity: 0.5,
             fillOpacity: 0.5
-          }).addTo(hotspotLayer).bindPopup(
+          }).addTo(hotspotLayer).bindPopup(`
             <b>${waktu}</b><br>
             ${lokasi}<br>
             Kecamatan: ${kecamatan}<br>
@@ -277,13 +285,12 @@
             Confidence: ${conf}<br>
             Sumber: ${sumberVal}<br>
             Koordinat: ${lat.toFixed(4)}, ${lon.toFixed(4)}
-          );
+          `);
         }
       });
     }
 
     function fetchAndRenderData() {
-      hotspotLayer = L.layerGroup().addTo(map); // Tambahkan setelah geojson
       fetch(url)
         .then(res => res.json())
         .then(data => {
@@ -310,7 +317,7 @@
         const ws = XLSX.utils.json_to_sheet(filtered);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Hotspot");
-        XLSX.writeFile(wb, hotspot.${format});
+        XLSX.writeFile(wb, `hotspot.${format}`);
       } else if (format === 'pdf') {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
@@ -339,24 +346,7 @@
     }
 
     function init() {
-      const geojsonUrl = 'https://raw.githubusercontent.com/Ditdalkarla/Hotspot-Map/main/provinsi.geojson';
-      fetch(geojsonUrl)
-        .then(res => res.json())
-        .then(data => {
-          geojsonLayer = L.geoJSON(data, {
-            style: {
-              color: '#3388ff',
-              weight: 1,
-              fillOpacity: 0.05
-            }
-          }).addTo(map);
-          // Setelah geojson dimuat, baru tampilkan hotspot
-          fetchAndRenderData();
-        })
-        .catch(err => {
-          console.error("Gagal memuat GeoJSON:", err);
-          fetchAndRenderData(); // Tetap tampilkan hotspot meski geojson gagal
-        });
+      fetchAndRenderData();
     }
 
     window.onload = () => {
