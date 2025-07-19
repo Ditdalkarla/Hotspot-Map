@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Peta Hotspot</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
@@ -11,29 +11,31 @@
       height: 100%;
       margin: 0;
     }
-    #notification {
-      display: none;
+    .popup-alert {
       position: fixed;
-      top: 20px;
-      right: 20px;
-      background: #fff8cc;
-      border: 1px solid #ffaa00;
+      top: 10px;
+      right: 10px;
+      background: rgba(255, 255, 255, 0.95);
       padding: 15px;
-      z-index: 9999;
-      font-size: 14px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+      border: 2px solid red;
       border-radius: 10px;
-      max-width: 300px;
+      z-index: 9999;
+      font-family: sans-serif;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
     }
-    #notification strong {
-      color: #cc0000;
+    .popup-alert h4 {
+      margin: 0 0 5px 0;
+      font-size: 16px;
+      color: red;
     }
-    #notification ul {
+    .popup-alert ul {
+      margin: 0;
       padding-left: 20px;
-      margin-top: 10px;
+      font-size: 14px;
     }
-    #notification li {
+    .popup-alert ul li {
       cursor: pointer;
+      color: blue;
       text-decoration: underline;
     }
   </style>
@@ -41,36 +43,114 @@
 <body>
   <div id="map"></div>
 
-  <!-- 🔔 Notifikasi -->
-  <div id="notification">
-    🔥 <strong>Hotspot baru terdeteksi!</strong>
-    <div id="new-hotspot-list"></div>
-  </div>
-
-  <!-- 🔊 Audio Notifikasi -->
-  <audio id="notif-sound" src="https://notificationsounds.com/storage/sounds/file-sounds-1152-pristine.mp3" preload="auto"></audio>
-
   <script>
-    const sheetUrl = 'https://opensheet.elk.sh/https://docs.google.com/spreadsheets/d/1g6TZQmjLuWf2oKr02RYFiQUZmCkMQTBvpgCmk5ZJl5o/DaftarHotspot';
-    let map, hotspotLayer, geojsonLayer;
-    let confidenceFilter = ['high', 'medium'];
-    let previousHotspots = new Set();
-    let markerMap = {}; // Untuk lompat ke marker
+    // Base layers
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution: '&copy; OpenStreetMap'
+    });
 
-    function initMap() {
-      map = L.map('map').setView([-2.5, 117], 5);
+    const esri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Tiles © Esri'
+    });
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 18,
-        attribution: '&copy; OpenStreetMap'
-      }).addTo(map);
+    // Map init
+    const map = L.map('map', {
+      center: [-1.5, 117],
+      zoom: 5,
+      layers: [osm] // default layer
+    });
 
-      hotspotLayer = L.layerGroup().addTo(map);
+    // Layer control
+    const baseLayers = {
+      "🗺️ OpenStreetMap": osm,
+      "🛰️ ESRI Satelit": esri
+    };
+    L.control.layers(baseLayers).addTo(map);
 
-      fetchGeoJSON();
+    let hotspotLayer = L.layerGroup().addTo(map);
+    let geojsonLayer;
+    let previousData = [];
+
+    function fetchAndRenderData() {
+      fetch('https://script.google.com/macros/s/AKfycbxVNwMkm61H_e1k-aRgHKvRHtUZLWe1iCImSFWqFke0ZQYYdXq1vhAfXh5P_9y-rmVh/exec')
+        .then(res => res.json())
+        .then(data => {
+          const newHotspots = [];
+          const newMarkers = [];
+
+          data.forEach(item => {
+            const key = item.latitude + ',' + item.longitude + ',' + item.date_hotspot;
+            if (!previousData.includes(key)) {
+              newHotspots.push(item);
+              previousData.push(key); // update list
+            }
+
+            const iconColor = item.confidence_level === "high" ? "red" : "yellow";
+            const icon = L.circleMarker([item.latitude, item.longitude], {
+              radius: 6,
+              fillColor: iconColor,
+              color: "#000",
+              weight: 1,
+              opacity: 0.5,
+              fillOpacity: 0.5
+            });
+
+            icon.bindPopup(`
+              <b>Provinsi:</b> ${item.nama_provinsi}<br/>
+              <b>Kab/Kota:</b> ${item.kabkota}<br/>
+              <b>Kecamatan:</b> ${item.kecamatan}<br/>
+              <b>Desa:</b> ${item.desa}<br/>
+              <b>Waktu:</b> ${item.date_hotspot}<br/>
+              <b>Confidence:</b> ${item.confidence_level}<br/>
+              <b>Sumber:</b> ${item.sumber}
+            `);
+
+            icon.addTo(hotspotLayer);
+
+            if (newHotspots.includes(item)) {
+              newMarkers.push({ marker: icon, item });
+            }
+          });
+
+          if (newMarkers.length > 0) {
+            showAlertPopup(newMarkers);
+            playNotificationSound();
+          }
+        });
     }
 
-    function fetchGeoJSON() {
+    function showAlertPopup(newMarkers) {
+      const container = document.createElement('div');
+      container.className = 'popup-alert';
+      container.innerHTML = `
+        <h4>🔥 Hotspot Baru Terdeteksi!</h4>
+        <ul>${newMarkers.map((m, i) => `<li data-idx="${i}">${m.item.desa}, ${m.item.kabkota}</li>`).join('')}</ul>
+      `;
+      document.body.appendChild(container);
+
+      // Klik lompat ke marker
+      container.querySelectorAll('li').forEach(li => {
+        li.addEventListener('click', () => {
+          const idx = li.getAttribute('data-idx');
+          const marker = newMarkers[idx].marker;
+          map.setView(marker.getLatLng(), 12);
+          marker.openPopup();
+        });
+      });
+
+      setTimeout(() => {
+        container.remove();
+      }, 60000); // hilang setelah 60 detik
+    }
+
+    function playNotificationSound() {
+      const audio = new Audio("https://www.soundjay.com/buttons/sounds/button-3.mp3");
+      audio.play();
+    }
+
+    function init() {
       const geojsonUrl = 'https://raw.githubusercontent.com/Ditdalkarla/Hotspot-Map/main/provinsi.geojson';
       fetch(geojsonUrl)
         .then(res => res.json())
@@ -84,10 +164,9 @@
           }).addTo(map);
           fetchAndRenderData();
 
+          // 🔁 Auto-refresh tiap 15 menit
           setInterval(() => {
-            console.log("⟳ Refreshing data...");
             hotspotLayer.clearLayers();
-            markerMap = {};
             fetchAndRenderData();
           }, 15 * 60 * 1000);
         })
@@ -96,84 +175,13 @@
           fetchAndRenderData();
 
           setInterval(() => {
-            console.log("⟳ Refreshing data...");
             hotspotLayer.clearLayers();
-            markerMap = {};
             fetchAndRenderData();
           }, 15 * 60 * 1000);
         });
     }
 
-    function showNotification(newData) {
-      const notif = document.getElementById('notification');
-      const list = document.getElementById('new-hotspot-list');
-      const sound = document.getElementById('notif-sound');
-
-      list.innerHTML = '<ul>' + newData.map((h, i) => {
-        const id = `${h.lat},${h.long},${h.date_hotspot}`;
-        return `<li onclick="zoomToHotspot('${id}')">${h.desa}, ${h.kecamatan}, ${h.kabkota} (${h.confidence_level.toUpperCase()})</li>`;
-      }).join('') + '</ul>';
-
-      notif.style.display = 'block';
-      sound.play(); // 🔊 mainkan suara
-
-      setTimeout(() => {
-        notif.style.display = 'none';
-      }, 60000);
-    }
-
-    function zoomToHotspot(id) {
-      const marker = markerMap[id];
-      if (marker) {
-        map.setView(marker.getLatLng(), 13);
-        marker.openPopup();
-      }
-    }
-
-    function fetchAndRenderData() {
-      fetch(sheetUrl)
-        .then(res => res.json())
-        .then(data => {
-          const newHotspots = [];
-
-          data.forEach(h => {
-            if (!confidenceFilter.includes(h.confidence_level.toLowerCase())) return;
-
-            const id = `${h.lat},${h.long},${h.date_hotspot}`;
-            const color = h.confidence_level === 'high' ? 'red' : 'yellow';
-            const marker = L.circleMarker([h.lat, h.long], {
-              radius: 8,
-              fillColor: color,
-              color: color,
-              weight: 1,
-              fillOpacity: 0.5
-            }).bindPopup(`
-              <strong>Provinsi:</strong> ${h.nama_provinsi}<br>
-              <strong>Kab/Kota:</strong> ${h.kabkota}<br>
-              <strong>Kecamatan:</strong> ${h.kecamatan}<br>
-              <strong>Desa:</strong> ${h.desa}<br>
-              <strong>Confidence:</strong> ${h.confidence_level.toUpperCase()}<br>
-              <strong>Tanggal:</strong> ${h.date_hotspot}<br>
-              <strong>Sumber:</strong> ${h.sumber}
-            `);
-
-            marker.addTo(hotspotLayer);
-            markerMap[id] = marker;
-
-            if (!previousHotspots.has(id)) {
-              newHotspots.push(h);
-              previousHotspots.add(id);
-            }
-          });
-
-          if (newHotspots.length > 0) {
-            showNotification(newHotspots);
-          }
-        });
-    }
-
-    window.zoomToHotspot = zoomToHotspot; // agar fungsi bisa dipanggil dari onclick
-    window.onload = initMap;
+    init();
   </script>
 </body>
 </html>
