@@ -1,64 +1,90 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Peta Hotspot</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
-    html, body, #map { height: 100%; margin: 0; padding: 0; }
+    html, body, #map {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    .legend {
+      background: white;
+      padding: 10px;
+      line-height: 18px;
+      color: #333;
+    }
+    .legend i {
+      width: 18px;
+      height: 18px;
+      float: left;
+      margin-right: 8px;
+      opacity: 0.7;
+    }
+    .leaflet-bottom.leaflet-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
   </style>
 </head>
 <body>
   <div id="map"></div>
 
   <script>
-    let map = L.map('map').setView([-2, 117], 5);
+    const map = L.map("map").setView([-2, 117], 5);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+    // Base map ESRI Imagery
+    const esriImagery = L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      {
+        attribution:
+          "Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community",
+      }
+    ).addTo(map);
 
     let hotspotLayer;
-    let geojsonLayer;
+    let provinsiLayer;
 
-    function loadProvinsiGeoJSON() {
-      fetch("provinsi.geojson")
-        .then(response => response.json())
-        .then(geojson => {
-          if (geojsonLayer) map.removeLayer(geojsonLayer);
-          geojsonLayer = L.geoJSON(geojson, {
-            style: {
-              color: "#000000",
-              weight: 1,
-              fillOpacity: 0
-            }
-          }).addTo(map);
-        })
-        .catch(err => console.error("Gagal memuat provinsi.geojson", err));
-    }
+    // Provinsi GeoJSON
+    fetch("provinsi.geojson")
+      .then((res) => res.json())
+      .then((data) => {
+        provinsiLayer = L.geoJSON(data, {
+          style: {
+            color: "#000000",
+            weight: 1,
+            fillOpacity: 0,
+          },
+        }).addTo(map);
+      });
 
-    function fetchAndRenderData() {
-      fetch('https://script.google.com/macros/s/AKfycbzUKP4gk3zAXmBsl3PaWfKoKxvVowqvzkVHmi3KuKHP0fGl6dnlVBIMX5R2rHbwCR4QWg/exec')
-        .then(res => res.json())
-        .then(data => {
-          if (hotspotLayer) map.removeLayer(hotspotLayer);
-
-          hotspotLayer = L.layerGroup();
-
-          data.features.forEach(feature => {
-            const coords = feature.geometry.coordinates;
-            const props = feature.properties;
-
-            const marker = L.circleMarker([coords[1], coords[0]], {
+    // Hotspot dari Google Apps Script Web App
+    fetch(
+      "https://script.google.com/macros/s/AKfycbzUKP4gk3zAXmBsl3PaWfKoKxvVowqvzkVHmi3KuKHP0fGl6dnlVBIMX5R2rHbwCR4QWg/exec"
+    )
+      .then((res) => res.json())
+      .then((data) => {
+        hotspotLayer = L.geoJSON(data, {
+          pointToLayer: function (feature, latlng) {
+            let color =
+              feature.properties.confidence_level === "high" ? "red" : "yellow";
+            return L.circleMarker(latlng, {
               radius: 6,
-              fillColor: props.confidence_level === 'high' ? 'red' : 'yellow',
-              color: '#000',
+              fillColor: color,
+              color: "#000",
               weight: 1,
               opacity: 1,
-              fillOpacity: 0.5
-            }).bindPopup(`
+              fillOpacity: 0.5,
+            });
+          },
+          onEachFeature: function (feature, layer) {
+            let props = feature.properties;
+            let popupContent = `
               <strong>Provinsi:</strong> ${props.nama_provinsi}<br>
               <strong>Kab/Kota:</strong> ${props.kabkota}<br>
               <strong>Kecamatan:</strong> ${props.kecamatan}<br>
@@ -66,22 +92,21 @@
               <strong>Confidence:</strong> ${props.confidence_level}<br>
               <strong>Sumber:</strong> ${props.sumber}<br>
               <strong>Waktu:</strong> ${props.date_hotspot}
-            `);
+            `;
+            layer.bindPopup(popupContent);
+          },
+        }).addTo(map);
+      });
 
-            hotspotLayer.addLayer(marker);
-          });
-
-          hotspotLayer.addTo(map);
-        })
-        .catch(err => console.error('Gagal memuat data hotspot:', err));
-    }
-
-    function init() {
-      loadProvinsiGeoJSON();      // Tambahkan layer provinsi dulu (di bawah hotspot)
-      fetchAndRenderData();       // Lalu tambahkan hotspot
-    }
-
-    init();
+    // Legend
+    const legend = L.control({ position: "bottomright" });
+    legend.onAdd = function (map) {
+      const div = L.DomUtil.create("div", "legend");
+      div.innerHTML += "<i style='background: red'></i> High Confidence<br>";
+      div.innerHTML += "<i style='background: yellow'></i> Medium Confidence<br>";
+      return div;
+    };
+    legend.addTo(map);
   </script>
 </body>
 </html>
