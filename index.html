@@ -5,214 +5,72 @@
   <title>Peta Hotspot</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
-    /* (style tidak berubah - tetap sama seperti sebelumnya) */
+    html, body, #map {
+      height: 100%;
+      margin: 0;
+    }
+    #notification {
+      display: none;
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #fff8cc;
+      border: 1px solid #ffaa00;
+      padding: 15px;
+      z-index: 9999;
+      font-size: 14px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+      border-radius: 10px;
+      max-width: 300px;
+    }
+    #notification strong {
+      color: #cc0000;
+    }
+    #notification ul {
+      padding-left: 20px;
+      margin-top: 10px;
+    }
+    #notification li {
+      cursor: pointer;
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
+  <div id="map"></div>
 
-  <!-- Login Overlay -->
-  <div id="login-overlay">
-    <h2>Masukkan Password</h2>
-    <input id="password-input" type="password" placeholder="Password" />
-    <button onclick="checkPassword()">Masuk</button>
-    <div id="login-error">Password salah</div>
+  <!-- 🔔 Notifikasi -->
+  <div id="notification">
+    🔥 <strong>Hotspot baru terdeteksi!</strong>
+    <div id="new-hotspot-list"></div>
   </div>
 
-  <!-- Header dan Map -->
-  <div class="header">
-    <img src="logo-kiri.png" class="logo" alt="Logo Kiri">
-    <div class="title">
-      DIREKTORAT PENGENDALIAN KEBAKARAN LAHAN<br>
-      <small>Peta Hotspot Level Confidence Medium - High selama 3 hari</small>
-    </div>
-    <img src="logo-kanan.png" class="logo" alt="Logo Kanan">
-  </div>
+  <!-- 🔊 Audio Notifikasi -->
+  <audio id="notif-sound" src="https://notificationsounds.com/storage/sounds/file-sounds-1152-pristine.mp3" preload="auto"></audio>
 
-  <div class="main">
-    <div class="filters">
-      <h4>Confidence Level</h4>
-      <label><input type="checkbox" class="confidence-filter" value="medium" checked> 🟡 Medium</label>
-      <label><input type="checkbox" class="confidence-filter" value="high" checked> 🔴 High</label>
-
-      <h4>Tanggal</h4>
-      <div id="tanggal-filter">Memuat...</div>
-
-      <h4>Sumber</h4>
-      <div id="sumber-filter">Memuat...</div>
-
-      <h4>Download Data</h4>
-      <div class="dropdown">
-        <button class="export-button">⬇️ Pilih Format</button>
-        <div class="dropdown-content">
-          <a href="#" onclick="exportTable('csv')">📄 CSV</a>
-          <a href="#" onclick="exportTable('xlsx')">📄 XLSX</a>
-          <a href="#" onclick="exportTable('pdf')">📄 PDF</a>
-        </div>
-      </div>
-      <button class="export-button" onclick="window.print()">🖨️ Cetak Peta</button>
-    </div>
-    <div id="map"></div>
-  </div>
-
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    const map = L.map('map', { attributionControl: false }).setView([-2.5, 117], 5);
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 18
-    }).addTo(map);
+    const sheetUrl = 'https://opensheet.elk.sh/https://docs.google.com/spreadsheets/d/1g6TZQmjLuWf2oKr02RYFiQUZmCkMQTBvpgCmk5ZJl5o/DaftarHotspot';
+    let map, hotspotLayer, geojsonLayer;
+    let confidenceFilter = ['high', 'medium'];
+    let previousHotspots = new Set();
+    let markerMap = {}; // Untuk lompat ke marker
 
-    let hotspotLayer = null;
-    let geojsonLayer = null;
-    const url = "https://opensheet.elk.sh/1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI/Data%20Hotspot%20Nasional";
-    let rawData = [];
+    function initMap() {
+      map = L.map('map').setView([-2.5, 117], 5);
 
-    function getLastThreeDates() {
-      const options = { day: '2-digit', month: 'long', year: 'numeric' };
-      const result = [];
-      for (let i = 0; i < 3; i++) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        result.push(date.toLocaleDateString('id-ID', options));
-      }
-      return result;
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        attribution: '&copy; OpenStreetMap'
+      }).addTo(map);
+
+      hotspotLayer = L.layerGroup().addTo(map);
+
+      fetchGeoJSON();
     }
 
-    function extractTanggal(tanggalJam) {
-      const parts = tanggalJam.split(',')[1]?.trim().split(' ') || [];
-      return parts.slice(0, 3).join(' ');
-    }
-
-    function renderFilterTanggal() {
-      const div = document.getElementById("tanggal-filter");
-      const list = getLastThreeDates();
-      div.innerHTML = "";
-      list.forEach(tgl => {
-        div.innerHTML += `<label><input type="checkbox" class="tanggal-filter" value="${tgl}" checked> ${tgl}</label>`;
-      });
-    }
-
-    function renderFilterSumber(data) {
-      const sumberSet = new Set();
-      data.forEach(row => {
-        if (row.Sumber) sumberSet.add(row.Sumber.trim());
-      });
-      const div = document.getElementById("sumber-filter");
-      div.innerHTML = "";
-      Array.from(sumberSet).sort().forEach(src => {
-        div.innerHTML += `<label><input type="checkbox" class="sumber-filter" value="${src}" checked> ${src}</label>`;
-      });
-    }
-
-    function getSelectedFilters() {
-      const levels = [...document.querySelectorAll('.confidence-filter:checked')].map(cb => cb.value);
-      const tanggal = [...document.querySelectorAll('.tanggal-filter:checked')].map(cb => cb.value);
-      const sumber = [...document.querySelectorAll('.sumber-filter:checked')].map(cb => cb.value);
-      return { levels, tanggal, sumber };
-    }
-
-    function applyFilters() {
-      const { levels, tanggal, sumber } = getSelectedFilters();
-      hotspotLayer.clearLayers();
-      rawData.forEach(row => {
-        const lat = parseFloat(row.Latitude);
-        const lon = parseFloat(row.Longitude);
-        const conf = row.Confidence_Level?.toLowerCase();
-        const waktu = row["Tanggal & Jam"] || "";
-        const tanggalOnly = extractTanggal(waktu);
-        const lokasi = `${row.Provinsi} - ${row["Kab/Kota"]}`;
-        const kecamatan = row.Kecamatan || "";
-        const desa = row.Desa || "";
-        const sumberVal = row.Sumber?.trim() || "";
-        if (!isNaN(lat) && !isNaN(lon) &&
-            levels.includes(conf) &&
-            tanggal.includes(tanggalOnly) &&
-            sumber.includes(sumberVal)) {
-          const color = conf === 'high' ? 'red' : 'yellow';
-          L.circleMarker([lat, lon], {
-            radius: 6,
-            fillColor: color,
-            color: '#000',
-            weight: 1,
-            opacity: 0.5,
-            fillOpacity: 0.5
-          }).addTo(hotspotLayer).bindPopup(`
-            <b>${waktu}</b><br>
-            ${lokasi}<br>
-            Kecamatan: ${kecamatan}<br>
-            Desa: ${desa}<br>
-            Confidence: ${conf}<br>
-            Sumber: ${sumberVal}<br>
-            Koordinat: ${lat.toFixed(4)}, ${lon.toFixed(4)}
-          `);
-        }
-      });
-    }
-
-    function fetchAndRenderData() {
-      if (hotspotLayer) {
-        hotspotLayer.clearLayers();
-      } else {
-        hotspotLayer = L.layerGroup().addTo(map);
-      }
-      fetch(url)
-        .then(res => res.json())
-        .then(data => {
-          rawData = data;
-          renderFilterTanggal();
-          renderFilterSumber(data);
-          applyFilters();
-          document.querySelectorAll('.filters input[type=checkbox]').forEach(cb => {
-            cb.addEventListener('change', applyFilters);
-          });
-        });
-    }
-
-    function exportTable(format) {
-      const { levels, tanggal, sumber } = getSelectedFilters();
-      const filtered = rawData.filter(row => {
-        const conf = row.Confidence_Level?.toLowerCase();
-        const tgl = extractTanggal(row["Tanggal & Jam"] || "");
-        const sumberVal = row.Sumber?.trim() || "";
-        return levels.includes(conf) && tanggal.includes(tgl) && sumber.includes(sumberVal);
-      });
-
-      if (format === 'csv' || format === 'xlsx') {
-        const ws = XLSX.utils.json_to_sheet(filtered);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Hotspot");
-        XLSX.writeFile(wb, `hotspot.${format}`);
-      } else if (format === 'pdf') {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        const table = filtered.map(r => [
-          r["Tanggal & Jam"] || "", r.Provinsi, r["Kab/Kota"], r.Kecamatan, r.Desa,
-          r.Latitude, r.Longitude, r.Confidence_Level, r.Sumber
-        ]);
-        doc.autoTable({
-          head: [['Tanggal & Jam', 'Provinsi', 'Kab/Kota', 'Kecamatan', 'Desa', 'Lat', 'Lng', 'Confidence', 'Sumber']],
-          body: table,
-          styles: { fontSize: 8 }
-        });
-        doc.save("hotspot.pdf");
-      }
-    }
-
-    function checkPassword() {
-      const input = document.getElementById('password-input').value;
-      if (input === "karla") {
-        localStorage.setItem("hotspot_logged_in", "true");
-        document.getElementById('login-overlay').style.display = 'none';
-        init();
-      } else {
-        document.getElementById('login-error').style.display = 'block';
-      }
-    }
-
-    function init() {
+    function fetchGeoJSON() {
       const geojsonUrl = 'https://raw.githubusercontent.com/Ditdalkarla/Hotspot-Map/main/provinsi.geojson';
       fetch(geojsonUrl)
         .then(res => res.json())
@@ -226,9 +84,10 @@
           }).addTo(map);
           fetchAndRenderData();
 
-          // ⟳ Tambahkan auto-refresh setiap 15 menit
           setInterval(() => {
-            console.log("⟳ Refreshing hotspot data...");
+            console.log("⟳ Refreshing data...");
+            hotspotLayer.clearLayers();
+            markerMap = {};
             fetchAndRenderData();
           }, 15 * 60 * 1000);
         })
@@ -236,21 +95,85 @@
           console.error("Gagal memuat GeoJSON:", err);
           fetchAndRenderData();
 
-          // Tetap auto-refresh meski geojson gagal
           setInterval(() => {
-            console.log("⟳ Refreshing hotspot data...");
+            console.log("⟳ Refreshing data...");
+            hotspotLayer.clearLayers();
+            markerMap = {};
             fetchAndRenderData();
           }, 15 * 60 * 1000);
         });
     }
 
-    window.onload = () => {
-      const loggedIn = localStorage.getItem("hotspot_logged_in");
-      if (loggedIn === "true") {
-        document.getElementById('login-overlay').style.display = 'none';
-        init();
+    function showNotification(newData) {
+      const notif = document.getElementById('notification');
+      const list = document.getElementById('new-hotspot-list');
+      const sound = document.getElementById('notif-sound');
+
+      list.innerHTML = '<ul>' + newData.map((h, i) => {
+        const id = `${h.lat},${h.long},${h.date_hotspot}`;
+        return `<li onclick="zoomToHotspot('${id}')">${h.desa}, ${h.kecamatan}, ${h.kabkota} (${h.confidence_level.toUpperCase()})</li>`;
+      }).join('') + '</ul>';
+
+      notif.style.display = 'block';
+      sound.play(); // 🔊 mainkan suara
+
+      setTimeout(() => {
+        notif.style.display = 'none';
+      }, 60000);
+    }
+
+    function zoomToHotspot(id) {
+      const marker = markerMap[id];
+      if (marker) {
+        map.setView(marker.getLatLng(), 13);
+        marker.openPopup();
       }
-    };
+    }
+
+    function fetchAndRenderData() {
+      fetch(sheetUrl)
+        .then(res => res.json())
+        .then(data => {
+          const newHotspots = [];
+
+          data.forEach(h => {
+            if (!confidenceFilter.includes(h.confidence_level.toLowerCase())) return;
+
+            const id = `${h.lat},${h.long},${h.date_hotspot}`;
+            const color = h.confidence_level === 'high' ? 'red' : 'yellow';
+            const marker = L.circleMarker([h.lat, h.long], {
+              radius: 8,
+              fillColor: color,
+              color: color,
+              weight: 1,
+              fillOpacity: 0.5
+            }).bindPopup(`
+              <strong>Provinsi:</strong> ${h.nama_provinsi}<br>
+              <strong>Kab/Kota:</strong> ${h.kabkota}<br>
+              <strong>Kecamatan:</strong> ${h.kecamatan}<br>
+              <strong>Desa:</strong> ${h.desa}<br>
+              <strong>Confidence:</strong> ${h.confidence_level.toUpperCase()}<br>
+              <strong>Tanggal:</strong> ${h.date_hotspot}<br>
+              <strong>Sumber:</strong> ${h.sumber}
+            `);
+
+            marker.addTo(hotspotLayer);
+            markerMap[id] = marker;
+
+            if (!previousHotspots.has(id)) {
+              newHotspots.push(h);
+              previousHotspots.add(id);
+            }
+          });
+
+          if (newHotspots.length > 0) {
+            showNotification(newHotspots);
+          }
+        });
+    }
+
+    window.zoomToHotspot = zoomToHotspot; // agar fungsi bisa dipanggil dari onclick
+    window.onload = initMap;
   </script>
 </body>
 </html>
