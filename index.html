@@ -205,7 +205,6 @@
 
     const hotspotLayer = L.layerGroup().addTo(map);
 
-    // Tambahkan GeoJSON Layer Provinsi (di bawah hotspotLayer)
     fetch('provinsi.geojson')
       .then(res => res.json())
       .then(geo => {
@@ -297,7 +296,8 @@
             Desa: ${desa}<br>
             Confidence: ${conf}<br>
             Sumber: ${sumberVal}<br>
-            Koordinat: ${lat.toFixed(4)}, ${lon.toFixed(4)}`
+            Koordinat: ${lat.toFixed(4)}, ${lon.toFixed(4)}<br>
+            <a href="https://www.google.com/maps?q=${lat},${lon}" target="_blank">📍 Lihat di Google Maps</a>`
           );
         }
       });
