@@ -181,6 +181,9 @@
       <h4>Sumber</h4>
       <div id="sumber-filter">Memuat...</div>
 
+      <h4>Layer Tambahan</h4>
+      <label><input type="checkbox" id="pbph-toggle"> PBPH (garis biru)</label>
+
       <h4>Download Data</h4>
       <div class="dropdown">
         <button class="export-button">⬇️ Pilih Format</button>
@@ -216,6 +219,35 @@
           }
         }).addTo(map);
       });
+
+    // Tambahan PBPH Layer
+    let pbphLayer = null;
+    fetch('PBPH.geojson')
+      .then(res => res.json())
+      .then(geo => {
+        pbphLayer = L.geoJSON(geo, {
+          style: {
+            color: "blue",
+            weight: 1,
+            fillOpacity: 0
+          },
+          onEachFeature: function (feature, layer) {
+            let popupText = '';
+            for (const key in feature.properties) {
+              popupText += `<b>${key}</b>: ${feature.properties[key]}<br>`;
+            }
+            layer.bindPopup(popupText);
+          }
+        });
+      });
+
+    document.getElementById('pbph-toggle').addEventListener('change', function() {
+      if (this.checked && pbphLayer) {
+        pbphLayer.addTo(map);
+      } else if (pbphLayer) {
+        map.removeLayer(pbphLayer);
+      }
+    });
 
     const url = "https://opensheet.elk.sh/1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI/Data%20Hotspot%20Nasional";
     let rawData = [];
